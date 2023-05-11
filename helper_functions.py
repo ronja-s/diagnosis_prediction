@@ -34,16 +34,6 @@ def str_to_class(class_name: str):
     return getattr(sys.modules["__main__"], class_name)
 
 
-def load_data(data_path: str, icd10_ranges_data_path: str) -> Tuple:
-    data_df = DataLoader(
-        multi_label=False, with_expected_condition_position_range=False
-    ).load(data_path=data_path, icd10_ranges_data_path=icd10_ranges_data_path)
-    TARGET_COLUMN = "expected_condition_groups"
-    y = data_df[TARGET_COLUMN]
-    X = data_df.drop(columns=[TARGET_COLUMN])
-    return X, y
-
-
 def evaluate_pipelines(
     X: pd.DataFrame,
     y: pd.Series,

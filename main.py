@@ -6,22 +6,37 @@ import numpy as np
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import (ExtraTreesClassifier, GradientBoostingClassifier,
-                              RandomForestClassifier)
-from sklearn.linear_model import (LogisticRegression,
-                                  PassiveAggressiveClassifier, Perceptron)
+from sklearn.ensemble import (
+    ExtraTreesClassifier,
+    GradientBoostingClassifier,
+    RandomForestClassifier,
+)
+from sklearn.linear_model import (
+    LogisticRegression,
+    PassiveAggressiveClassifier,
+    Perceptron,
+)
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
-from sklearn.metrics import (accuracy_score, balanced_accuracy_score,
-                             make_scorer, top_k_accuracy_score)
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    make_scorer,
+    top_k_accuracy_score,
+)
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 import shap
 
-from helper_functions import (check_preprocessing, determine_best_parameters,
-                              evaluate_pipelines, load_data,
-                              perform_gridsearch, plot_grid_search_results)
+from helper_functions import (
+    check_preprocessing,
+    determine_best_parameters,
+    evaluate_pipelines,
+    perform_gridsearch,
+    plot_grid_search_results,
+)
+from data_loader import DataLoader
 
 warnings.filterwarnings("ignore")
 # set random number generator seed for reproducibilty
@@ -33,7 +48,7 @@ if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 
 data_path = "./data/test_cases.json"
-icd10_ranges_data_path = "./data/icd10_codes.csv"
+icd10_chapters_definition_path = "./data/icd10_chapters_definition.csv"
 accuracies_file_path = results_dir + "accuracies.csv"
 best_models_file_path = results_dir + "best_models.csv"
 grid_search_file_path = results_dir + "grid_search.csv"
@@ -49,9 +64,7 @@ cross_validation_params = {
 
 # pipeline parameter ranges:
 models = [
-    DummyClassifier(
-        strategy="prior"
-    ),
+    DummyClassifier(strategy="prior"),
     KNeighborsClassifier(),
     DecisionTreeClassifier(max_depth=None),
     LogisticRegression(),
@@ -62,7 +75,7 @@ models = [
     RandomForestClassifier(),
     # ExtraTreesClassifier(),
     # PassiveAggressiveClassifier(),
-    # Perceptron(),  
+    # Perceptron(),
     # GradientBoostingClassifier(),
 ]
 dim_reduction_algorithm_values = [
@@ -81,7 +94,7 @@ n_most_frequent_values = [None]
 # note: try to minimize overfitting for the best models/pipes:
 hyperparameters = {
     "LogisticRegression": {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
-    "LinearSVC": {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]}, 
+    "LinearSVC": {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
     # "PassiveAggressiveClassifier": {
     #     "C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]
     # },
@@ -90,7 +103,7 @@ hyperparameters = {
     },
     # "ExtraTreesClassifier": {
     #     "max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]
-    # }, 
+    # },
     "MLPClassifier": {
         "alpha": [
             0.0001,
@@ -101,14 +114,18 @@ hyperparameters = {
         ],
         # "hidden_layer_sizes": [(200,), (100,), (50,), (20,), (10,), (5,)],
     },
-    "LinearDiscriminantAnalysis": {
-        "shrinkage": [None, 0.0, 0.3, 0.6, 1.0]
-    },
+    "LinearDiscriminantAnalysis": {"shrinkage": [None, 0.0, 0.3, 0.6, 1.0]},
 }
 
 # load data:
 print("Load the data.")
-X, y = load_data(data_path=data_path, icd10_ranges_data_path=icd10_ranges_data_path)
+X, y = DataLoader(multi_label=False).load(
+    data_path=data_path, icd10_chapters_definition_path=icd10_chapters_definition_path
+)
+print("X:")
+print(X)
+print("y:")
+print(y)
 
 # %% check preprocessing:
 print("Check the preprocessing.")
@@ -146,7 +163,9 @@ determine_best_parameters(
 )
 
 # %% perform grid search for models hyperparameters in order to try minimizing overfitting:
-print("For each model: Try to fix overfitting by varying parameter which reflects the model complexity.")
+print(
+    "For each model: Try to fix overfitting by varying parameter which reflects the model complexity."
+)
 perform_gridsearch(
     X=X,
     y=y,
@@ -157,7 +176,9 @@ perform_gridsearch(
 )
 
 # %% determine best hyperparameters:
-print("For each model, find the best value for this parameter which reflects the model complexity.")
+print(
+    "For each model, find the best value for this parameter which reflects the model complexity."
+)
 determine_best_parameters(
     input_file_path=grid_search_file_path,
     accuracy_column="mean_test_accuracy",
@@ -180,4 +201,3 @@ plot_grid_search_results(
 # %%[markdown]
 # Further doing (ideas):
 # - include whether an evidence is initial -> one hot encoding (1 column for each evidence)
-

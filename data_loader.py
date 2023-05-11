@@ -1,32 +1,28 @@
 import json
-from typing import List
+from typing import List, Tuple
 
 import pandas as pd
 
 
-class ConditionGrouping:
-    """Class for grouping the possible conditions into categories."""
+class ICD10Grouping:
+    """Class for grouping ICD-10 codes into chapters."""
 
-    def __init__(self, data_path: str) -> None:
-        self.data_path = data_path
-        self.icd10_groups_df = None
+    def __init__(self, icd10_chapters_definition_path: str) -> None:
+        self.data_path = icd10_chapters_definition_path
+        self.icd10_chapters_definition_df = None
 
-    def _load_data(self) -> None:
-        if self.icd10_groups_df is None:
-            self.icd10_groups_df = pd.read_csv(self.data_path)
-
-    def map_icd10_code_to_condition_group(self, icd10_code: str) -> str:
+    def map_icd10_code_to_chapter(self, icd10_code: str) -> str:
         self._load_data()
-        for icd10_code_range in self.icd10_groups_df["icd10_code_range"]:
-            start_range, end_range = tuple(icd10_code_range.split("-"))
+        for icd10_block in self.icd10_chapters_definition_df["block"]:
+            block_start, block_end = tuple(icd10_block.split("-"))
 
             # check if icd10_code is in the given range:
-            if (icd10_code >= start_range) and (icd10_code <= end_range):
-                return icd10_code_range
+            if (icd10_code >= block_start) and (icd10_code <= block_end):
+                return icd10_block
             else:
                 continue
 
-    def map_icd10_code_list_to_condition_groups(
+    def map_multiple_icd10_codes_to_chapters(
         self, icd10_code_list: List[str]
     ) -> List[str]:
         self._load_data()
@@ -34,47 +30,86 @@ class ConditionGrouping:
             list(
                 set(
                     [
-                        self.map_icd10_code_to_condition_group(icd10_code=code)
+                        self.map_icd10_code_to_chapter(icd10_code=code)
                         for code in icd10_code_list
                     ]
                 )
             )
         )
 
+    def _load_data(self) -> None:
+        if self.icd10_chapters_definition_df is None:
+            self.icd10_chapters_definition_df = pd.read_csv(self.data_path)
+
 
 class DataLoader:
     """Class for loading the data used for building the model.
-    Some manual preprocessing is done here in order to get a suited format for the data."""
+    Some manual preprocessing is done here in order to get a suitable format for the
+    data.
+    """
 
-    def __init__(
-        self,
-        multi_label: bool = False,
-        with_expected_condition_position_range: bool = False,
-    ) -> None:
+    def __init__(self, multi_label: bool = False) -> None:
+        """Args:
+        multi_label: If True, target is a list of ICD-10 code blocks (str), possibly
+            resulting in a multi-label classification task. If False, target is a
+            single string containing this list of ICD-10 code blocks. Defaults to False.
+        """
         self.multi_label = multi_label
-        self.with_expected_condition_position_range = (
-            with_expected_condition_position_range
-        )
+        self._data_df = None
+        self._TARGET_COLUMN = "expected_condition_icd10_blocks"
 
-    def load(self, data_path: str, icd10_ranges_data_path: str) -> pd.DataFrame:
+    def load(
+        self, data_path: str, icd10_chapters_definition_path: str
+    ) -> Tuple[pd.DataFrame, pd.Series]:
+        """
+        Args:
+            data_path (str): Path to the data that should be loaded.
+            icd10_chapters_definition_path (str): Path to the file containing the
+                definitions of the ICD-10 chapters.
+        Returns:
+            Tuple[pd.DataFrame, pd.Series]: (Feature dataframe X, target series y)
+            Columns of feature dataframe: sex (str), age_in_months (int), evidence_present (List[str]), evidence_absent (List[str]);
+            Name of target series: expected_condition_icd10_blocks (List[str] or str, depending on parameter multi_label)
+        """
+        self._load_raw_dataframe(data_path=data_path)
+        self._manipulate_raw_dataframe(
+            icd10_chapters_definition_path=icd10_chapters_definition_path
+        )
+        y = self._data_df[self._TARGET_COLUMN]
+        X = self._data_df.drop(columns=[self._TARGET_COLUMN])
+        return X, y
+
+    def _load_raw_dataframe(self, data_path: str) -> None:
         with open(data_path, encoding="utf8") as json_file:
             raw_data = json.load(json_file)
-        raw_data_df = pd.json_normalize(raw_data)
+        self._data_df = pd.json_normalize(raw_data)
+        self._data_df.set_index("public_test_case_id", inplace=True)
 
-        # drop unimportant columns:
-        columns_to_drop = [
+    def _manipulate_raw_dataframe(self, icd10_chapters_definition_path: str) -> None:
+        self.__check_if_dataframe_is_loaded
+        self.__drop_undesirable_columns()
+        self.__prepare_age_and_sex_columns()
+        self.__extract_evidence()
+        self.__group_icd10_codes(
+            icd10_chapters_definition_path=icd10_chapters_definition_path
+        )
+
+    def __drop_undesirable_columns(self) -> None:
+        COLUMS_TO_DROP = [
             "public_test_case_name",
             "public_test_case_source",
             "expected_condition_name",
             "expected_condition_common_name",
             "expected_condition_id",
+            "expected_condition_position_range",
             "test_case_passed",
             "predicted_conditions",
         ]
-        data_df = raw_data_df.drop(columns=columns_to_drop)
+        self._data_df = self._data_df.drop(columns=COLUMS_TO_DROP)
 
+    def __prepare_age_and_sex_columns(self) -> None:
         # rename serialized api_payload columns:
-        data_df.rename(
+        self._data_df.rename(
             columns={
                 "api_payload.sex": "sex",
                 "api_payload.age.unit": "age_unit",
@@ -83,36 +118,23 @@ class DataLoader:
             inplace=True,
         )
 
-        # set index to "public_test_case_id":
-        data_df.set_index("public_test_case_id", inplace=True)
-
-        # transform column expected_condition_position range from string to number:
-        if self.with_expected_condition_position_range:
-            data_df["expected_condition_position_range"] = data_df[
-                "expected_condition_position_range"
-            ].map(lambda x: x.split("_")[-1])
-        else:
-            data_df = data_df.drop(columns=["expected_condition_position_range"])
-
-        # convert age column into month unit:
-        data_df["age_in_months"] = data_df.apply(
+        # use age in months (consistent unit) as column:
+        self._data_df["age_in_months"] = self._data_df.apply(
             lambda row: row["age"] * 12 + 6
             if row["age_unit"] == "year"
             else row["age"],
             axis=1,
         )
-        # drop initial age columns:
-        data_df = data_df.drop(columns=["age", "age_unit"])
+        self._data_df = self._data_df.drop(columns=["age", "age_unit"])
 
-        # get present and absent symptoms for each patient:
-        data_df["evidence_present"] = data_df["evidence.present"].map(
+    def __extract_evidence(self) -> None:
+        self._data_df["evidence_present"] = self._data_df["evidence.present"].map(
             lambda x: [list_entry["id"] for list_entry in x]
         )
-        data_df["evidence_absent"] = data_df["evidence.absent"].map(
+        self._data_df["evidence_absent"] = self._data_df["evidence.absent"].map(
             lambda x: [list_entry["id"] for list_entry in x]
         )
-        # drop evidence columns that are not needed anymore:
-        data_df = data_df.drop(
+        self._data_df = self._data_df.drop(
             columns=[
                 "evidence.present",
                 "evidence.absent",
@@ -121,20 +143,21 @@ class DataLoader:
             ]
         )
 
-        # group the expected_condition_icd10_codes into categories:
-        # note: use string of list of categories in order to avoid a multilabel classification
-        grouping = ConditionGrouping(data_path=icd10_ranges_data_path)
-        data_df["expected_condition_groups"] = data_df[
+    def __group_icd10_codes(self, icd10_chapters_definition_path: str) -> None:
+        grouping = ICD10Grouping(
+            icd10_chapters_definition_path=icd10_chapters_definition_path
+        )
+        self._data_df[self._TARGET_COLUMN] = self._data_df[
             "expected_condition_icd10_codes"
         ].map(
-            lambda code_list: grouping.map_icd10_code_list_to_condition_groups(
-                code_list
-            )
+            lambda code_list: grouping.map_multiple_icd10_codes_to_chapters(code_list)
         )
-        data_df = data_df.drop(columns=["expected_condition_icd10_codes"])
+        self._data_df = self._data_df.drop(columns=["expected_condition_icd10_codes"])
         if not self.multi_label:
-            data_df["expected_condition_groups"] = data_df[
-                "expected_condition_groups"
+            self._data_df[self._TARGET_COLUMN] = self._data_df[
+                self._TARGET_COLUMN
             ].astype(str)
 
-        return data_df
+    def __check_if_dataframe_is_loaded(self) -> None:
+        if self._data_df.empty:
+            raise ValueError("Raw dataframe is not yet loaded.")
