@@ -17,15 +17,17 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
+import shap
 
 from helper_functions import (check_preprocessing, determine_best_parameters,
                               evaluate_pipelines, load_data,
                               perform_gridsearch, plot_grid_search_results)
 
 warnings.filterwarnings("ignore")
+# set random number generator seed for reproducibilty
 np.random.seed(0)
 
-# %% global variables:
+# global variables:
 results_dir = "./test_results/"
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
@@ -75,7 +77,7 @@ count_evidence_values = [False, True]
 include_absent_evidence_values = [False, True]
 n_most_frequent_values = [None]
 
-# classifiers hyperparameters for tuning overfitting:
+# classifiers' hyperparameters for tuning overfitting:
 # note: try to minimize overfitting for the best models/pipes:
 hyperparameters = {
     "LogisticRegression": {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
@@ -104,10 +106,12 @@ hyperparameters = {
     },
 }
 
-# %% load data:
+# load data:
+print("Load the data.")
 X, y = load_data(data_path=data_path, icd10_ranges_data_path=icd10_ranges_data_path)
 
 # %% check preprocessing:
+print("Check the preprocessing.")
 check_preprocessing(
     X=X,
     model=models[0],
@@ -119,6 +123,7 @@ check_preprocessing(
 )
 
 # %% evaluate pipelines (with cross validation):
+print("Train and evaluate different chosen models and parameters.")
 evaluate_pipelines(
     X=X,
     y=y,
@@ -133,14 +138,15 @@ evaluate_pipelines(
 )
 
 # %% determine best pipelines/models:
+print("For each model: Find the best performing parameters.")
 determine_best_parameters(
     input_file_path=accuracies_file_path,
     accuracy_column="test_accuracy",
     result_file_path=best_models_file_path,
 )
 
-
 # %% perform grid search for models hyperparameters in order to try minimizing overfitting:
+print("For each model: Try to fix overfitting by varying parameter which reflects the model complexity.")
 perform_gridsearch(
     X=X,
     y=y,
@@ -151,6 +157,7 @@ perform_gridsearch(
 )
 
 # %% determine best hyperparameters:
+print("For each model, find the best value for this parameter which reflects the model complexity.")
 determine_best_parameters(
     input_file_path=grid_search_file_path,
     accuracy_column="mean_test_accuracy",
@@ -158,10 +165,10 @@ determine_best_parameters(
 )
 
 # %% plot grid search results:
+print("Plot the results.")
 plot_grid_search_results(
     grid_search_file_path=grid_search_file_path, result_dir=results_dir
 )
-
 
 # %%
 # analyze feature importance:
@@ -173,3 +180,4 @@ plot_grid_search_results(
 # %%[markdown]
 # Further doing (ideas):
 # - include whether an evidence is initial -> one hot encoding (1 column for each evidence)
+

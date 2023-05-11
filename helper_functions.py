@@ -30,6 +30,10 @@ pd.plotting.register_matplotlib_converters()
 warnings.filterwarnings("ignore")
 
 
+def str_to_class(class_name: str):
+    return getattr(sys.modules["__main__"], class_name)
+
+
 def load_data(data_path: str, icd10_ranges_data_path: str) -> Tuple:
     data_df = DataLoader(
         multi_label=False, with_expected_condition_position_range=False
@@ -87,15 +91,19 @@ def evaluate_pipelines(
                                 n_most_frequent=n_most_frequent,
                             )
                         except ValueError:
-                            # ignore parameter combinations which are not valid:
+                            # ignore parameter combinations which are not valid
                             continue
 
                         for model_name, pipe in pipes.items():
+                            try:
+                                test_accuracy, train_accuracy = perform_cross_validation(
+                                    pipe=pipe, X=X, y=y, cv=5
+                                )
+                            except ValueError:
+                                # ignore parameter combinations which are not valid
+                                continue
                             print(
-                                f"Evaluate for: model={model_name}, dim_reduction_algorithm={dim_reduction_algorithm}, n_dimensions={n_dimensions}, count_evidences={count_evidence}, include_absent_evidence={include_absent_evidence}, n_most_frequent={n_most_frequent}"
-                            )
-                            test_accuracy, train_accuracy = perform_cross_validation(
-                                pipe=pipe, X=X, y=y, cv=5
+                                f"Evaluate for: model={model_name}, dim_reduction_algorithm={dim_reduction_algorithm.__name__ if dim_reduction_algorithm is not None else None}, n_dimensions={n_dimensions}, count_evidences={count_evidence}, include_absent_evidence={include_absent_evidence}, n_most_frequent={n_most_frequent}"
                             )
                             print(
                                 f"  => Test accuracy={test_accuracy}, train accuracy={train_accuracy}"
@@ -146,9 +154,6 @@ def perform_gridsearch(
     hyperparameters: Dict[str, Dict[str, list]],
     result_file_path: Optional[str],
 ) -> pd.DataFrame:
-    def str_to_class(class_name: str):
-        return getattr(sys.modules[__name__], class_name)
-
     best_models_df = pd.read_csv(best_models_file_path)
     grid_search_results_df = pd.DataFrame()
     for model_name in hyperparameters.keys():
@@ -158,13 +163,17 @@ def perform_gridsearch(
             .squeeze(axis=0)
             .replace(np.nan, None)
         )
+        if best_pipe_parameters.empty:
+            print(f"Model {model_name} not contained in file {best_models_file_path}. Will try the next model.")
+            continue
         if model_name == "LinearDiscriminantAnalysis":
             model = str_to_class(model_name)(solver="lsqr")
         else:
             model = str_to_class(model_name)()
+        dim_reduction_algorithm = str_to_class(best_pipe_parameters["dim_reduction_algorithm"]) if best_pipe_parameters["dim_reduction_algorithm"] else None
         best_pipeline = PipelineBuilder().get_pipe(
             model=model,
-            dim_reduction_algorithm=best_pipe_parameters["dim_reduction_algorithm"],
+            dim_reduction_algorithm=dim_reduction_algorithm,
             n_dimensions=int(best_pipe_parameters["n_dimensions"])
             if best_pipe_parameters["n_dimensions"] is not None
             else None,

@@ -1,6 +1,7 @@
 import sys
-from typing import Dict, Optional
+from typing import Dict, Optional, Type, List
 
+import sklearn
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
@@ -93,8 +94,8 @@ class PipelineBuilder:
 
     def get_pipe(
         self,
-        model,
-        dim_reduction_algorithm=None,
+        model: sklearn.base.BaseEstimator,
+        dim_reduction_algorithm: Optional[Type] = None,
         n_dimensions: Optional[int] = None,
         count_evidence: bool = False,
         include_absent_evidence: bool = True,
@@ -120,7 +121,7 @@ class PipelineBuilder:
             steps.append(
                 (
                     "dimensionality_reduction",
-                    str_to_class(dim_reduction_algorithm)(n_components=n_dimensions),
+                    dim_reduction_algorithm(n_components=n_dimensions),
                 )
             )
         steps.append(("model", model))
@@ -129,8 +130,8 @@ class PipelineBuilder:
 
     def get_pipes(
         self,
-        models,
-        dim_reduction_algorithm=None,
+        models: List[sklearn.base.BaseEstimator],
+        dim_reduction_algorithm: Optional[Type] = None,
         n_dimensions: Optional[int] = None,
         count_evidence: bool = False,
         include_absent_evidence: bool = True,
