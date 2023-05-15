@@ -10,14 +10,25 @@ import seaborn as sns
 import sklearn
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import (ExtraTreesClassifier, GradientBoostingClassifier,
-                              RandomForestClassifier)
-from sklearn.linear_model import (LogisticRegression,
-                                  PassiveAggressiveClassifier, Perceptron)
+from sklearn.ensemble import (
+    ExtraTreesClassifier,
+    GradientBoostingClassifier,
+    RandomForestClassifier,
+)
+from sklearn.linear_model import (
+    LogisticRegression,
+    PassiveAggressiveClassifier,
+    Perceptron,
+)
 from sklearn.metrics import accuracy_score, make_scorer, top_k_accuracy_score
-from sklearn.model_selection import (GridSearchCV, RandomizedSearchCV,
-                                     StratifiedKFold, cross_val_score,
-                                     cross_validate, train_test_split)
+from sklearn.model_selection import (
+    GridSearchCV,
+    RandomizedSearchCV,
+    StratifiedKFold,
+    cross_val_score,
+    cross_validate,
+    train_test_split,
+)
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
@@ -34,19 +45,44 @@ def str_to_class(class_name: str):
     return getattr(sys.modules["__main__"], class_name)
 
 
+def check_preprocessing(
+    X: pd.DataFrame,
+    model: sklearn.base.BaseEstimator,
+    dim_reduction_algorithm: Optional[Type] = None,
+    n_dimensions: Optional[int] = None,
+    count_evidence: bool = False,
+    include_absent_evidence: bool = True,
+    n_most_frequent: Optional[int] = None,
+) -> None:
+    pipe = PipelineBuilder().get_pipe(
+        model=model,
+        dim_reduction_algorithm=dim_reduction_algorithm,
+        n_dimensions=n_dimensions,
+        count_evidence=count_evidence,
+        include_absent_evidence=include_absent_evidence,
+        n_most_frequent=n_most_frequent,
+    )
+    X_transformed = X
+
+    for name, transformer in pipe.steps[:-1]:
+        if transformer is not None:
+            X_transformed = transformer.fit_transform(X_transformed)
+            print(f"X after step {name}: {X_transformed}\nShape: {X_transformed.shape}")
+
+
 def evaluate_pipelines(
     X: pd.DataFrame,
     y: pd.Series,
+    models: List[sklearn.base.BaseEstimator],
     dim_reduction_algorithm_values: List[Optional[Type]],
     n_dimensions_values: List[Optional[int]],
     count_evidence_values: List[bool],
     include_absent_evidence_values: List[bool],
     n_most_frequent_values: List[Optional[int]],
-    models: List[sklearn.base.BaseEstimator],
     cross_validation_params: dict,
     result_file_path: Optional[str],
 ) -> pd.DataFrame:
-    def perform_cross_validation(pipe, X, y, cv=5):
+    def perform_cross_validation(pipe, X, y, cross_validation_params):
         scores = cross_validate(pipe, X, y, **cross_validation_params)
         test_accuracy = scores["test_accuracy"].mean()
         train_accuracy = scores["train_accuracy"].mean()
@@ -86,8 +122,14 @@ def evaluate_pipelines(
 
                         for model_name, pipe in pipes.items():
                             try:
-                                test_accuracy, train_accuracy = perform_cross_validation(
-                                    pipe=pipe, X=X, y=y, cv=5
+                                (
+                                    test_accuracy,
+                                    train_accuracy,
+                                ) = perform_cross_validation(
+                                    pipe=pipe,
+                                    X=X,
+                                    y=y,
+                                    cross_validation_params=cross_validation_params,
                                 )
                             except ValueError:
                                 # ignore parameter combinations which are not valid
@@ -154,13 +196,19 @@ def perform_gridsearch(
             .replace(np.nan, None)
         )
         if best_pipe_parameters.empty:
-            print(f"Model {model_name} not contained in file {best_models_file_path}. Will try the next model.")
+            print(
+                f"Model {model_name} not contained in file {best_models_file_path}. Will try the next model."
+            )
             continue
         if model_name == "LinearDiscriminantAnalysis":
             model = str_to_class(model_name)(solver="lsqr")
         else:
             model = str_to_class(model_name)()
-        dim_reduction_algorithm = str_to_class(best_pipe_parameters["dim_reduction_algorithm"]) if best_pipe_parameters["dim_reduction_algorithm"] else None
+        dim_reduction_algorithm = (
+            str_to_class(best_pipe_parameters["dim_reduction_algorithm"])
+            if best_pipe_parameters["dim_reduction_algorithm"]
+            else None
+        )
         best_pipeline = PipelineBuilder().get_pipe(
             model=model,
             dim_reduction_algorithm=dim_reduction_algorithm,
@@ -232,29 +280,3 @@ def plot_grid_search_results(grid_search_file_path: str, result_dir: str):
             )
             fig.savefig(file_path, bbox_inches="tight", dpi=150)
             plt.close(fig)
-
-
-def check_preprocessing(
-    X: pd.DataFrame,
-    model: sklearn.base.BaseEstimator,
-    dim_reduction_algorithm: Optional[Type] = None,
-    n_dimensions: Optional[int] = None,
-    count_evidence: bool = False,
-    include_absent_evidence: bool = True,
-    n_most_frequent: Optional[int] = None,
-) -> None:
-    pipe = PipelineBuilder().get_pipe(
-        model=model,
-        dim_reduction_algorithm=dim_reduction_algorithm,
-        n_dimensions=n_dimensions,
-        count_evidence=count_evidence,
-        include_absent_evidence=include_absent_evidence,
-        n_most_frequent=n_most_frequent,
-    )
-    Xt = X
-
-    for name, transformer in pipe.steps[:-1]:
-        if transformer is not None:
-            Xt = transformer.fit_transform(Xt)
-            print(f"Step {name}:")
-            print(f"X after that step: {Xt}\nShape: {Xt.shape}")

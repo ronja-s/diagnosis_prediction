@@ -144,12 +144,12 @@ print("Train and evaluate different chosen models and parameters.")
 evaluate_pipelines(
     X=X,
     y=y,
+    models=models,
     dim_reduction_algorithm_values=dim_reduction_algorithm_values,
     n_dimensions_values=n_dimensions_values,
     count_evidence_values=count_evidence_values,
     include_absent_evidence_values=include_absent_evidence_values,
     n_most_frequent_values=n_most_frequent_values,
-    models=models,
     cross_validation_params=cross_validation_params,
     result_file_path=accuracies_file_path,
 )

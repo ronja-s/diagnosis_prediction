@@ -4,44 +4,6 @@ from typing import List, Tuple
 import pandas as pd
 
 
-class ICD10Grouping:
-    """Class for grouping ICD-10 codes into chapters."""
-
-    def __init__(self, icd10_chapters_definition_path: str) -> None:
-        self.data_path = icd10_chapters_definition_path
-        self.icd10_chapters_definition_df = None
-
-    def map_icd10_code_to_chapter(self, icd10_code: str) -> str:
-        self._load_data()
-        for icd10_block in self.icd10_chapters_definition_df["block"]:
-            block_start, block_end = tuple(icd10_block.split("-"))
-
-            # check if icd10_code is in the given range:
-            if (icd10_code >= block_start) and (icd10_code <= block_end):
-                return icd10_block
-            else:
-                continue
-
-    def map_multiple_icd10_codes_to_chapters(
-        self, icd10_code_list: List[str]
-    ) -> List[str]:
-        self._load_data()
-        return sorted(
-            list(
-                set(
-                    [
-                        self.map_icd10_code_to_chapter(icd10_code=code)
-                        for code in icd10_code_list
-                    ]
-                )
-            )
-        )
-
-    def _load_data(self) -> None:
-        if self.icd10_chapters_definition_df is None:
-            self.icd10_chapters_definition_df = pd.read_csv(self.data_path)
-
-
 class DataLoader:
     """Class for loading the data used for building the model.
     Some manual preprocessing is done here in order to get a suitable format for the
@@ -50,9 +12,9 @@ class DataLoader:
 
     def __init__(self, multi_label: bool = False) -> None:
         """Args:
-        multi_label: If True, target is a list of ICD-10 code blocks (str), possibly
-            resulting in a multi-label classification task. If False, target is a
-            single string containing this list of ICD-10 code blocks. Defaults to False.
+        multi_labe (bool): If True, target is a list of ICD-10 code blocks (str),
+        possibly resulting in a multi-label classification task. If False, target is a
+        single string containing this list of ICD-10 code blocks. Defaults to False.
         """
         self.multi_label = multi_label
         self._data_df = None
@@ -64,12 +26,17 @@ class DataLoader:
         """
         Args:
             data_path (str): Path to the data that should be loaded.
+
             icd10_chapters_definition_path (str): Path to the file containing the
                 definitions of the ICD-10 chapters.
+
         Returns:
             Tuple[pd.DataFrame, pd.Series]: (Feature dataframe X, target series y)
-            Columns of feature dataframe: sex (str), age_in_months (int), evidence_present (List[str]), evidence_absent (List[str]);
-            Name of target series: expected_condition_icd10_blocks (List[str] or str, depending on parameter multi_label)
+
+            Columns of feature dataframe: sex (str), age_in_months (int),
+            evidence_present (List[str]), evidence_absent (List[str]);
+            Name of target series: expected_condition_icd10_blocks (List[str] or str,
+            depending on parameter multi_label)
         """
         self._load_raw_dataframe(data_path=data_path)
         self._manipulate_raw_dataframe(
@@ -161,3 +128,41 @@ class DataLoader:
     def __check_if_dataframe_is_loaded(self) -> None:
         if self._data_df.empty:
             raise ValueError("Raw dataframe is not yet loaded.")
+
+
+class ICD10Grouping:
+    """Class for grouping ICD-10 codes into chapters."""
+
+    def __init__(self, icd10_chapters_definition_path: str) -> None:
+        self.data_path = icd10_chapters_definition_path
+        self.icd10_chapters_definition_df = None
+
+    def map_icd10_code_to_chapter(self, icd10_code: str) -> str:
+        self._load_data()
+        for icd10_block in self.icd10_chapters_definition_df["block"]:
+            block_start, block_end = tuple(icd10_block.split("-"))
+
+            # check if icd10_code is in the given range:
+            if (icd10_code >= block_start) and (icd10_code <= block_end):
+                return icd10_block
+            else:
+                continue
+
+    def map_multiple_icd10_codes_to_chapters(
+        self, icd10_code_list: List[str]
+    ) -> List[str]:
+        self._load_data()
+        return sorted(
+            list(
+                set(
+                    [
+                        self.map_icd10_code_to_chapter(icd10_code=code)
+                        for code in icd10_code_list
+                    ]
+                )
+            )
+        )
+
+    def _load_data(self) -> None:
+        if self.icd10_chapters_definition_df is None:
+            self.icd10_chapters_definition_df = pd.read_csv(self.data_path)

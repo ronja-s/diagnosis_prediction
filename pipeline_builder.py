@@ -27,7 +27,7 @@ class PipelineBuilder:
 
         evidence_encoding_steps = [
             (
-                "encoding",
+                "evidence_encoding",
                 EvidenceEncoder(
                     handle_unknown="ignore",
                     count_evidence=count_evidences,

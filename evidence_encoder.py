@@ -28,28 +28,25 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
         column_absent_evidence: str = "evidence_absent",
     ) -> None:
         """Args:
-        handle_unknown (str, optional): How to handle unknown evidence values when
-        transforming. Can be either "error" (raise error if there is an unknown evidence
-        value) or "ignore" (unknown evidence values are encoded by 0). Defaults to
-        "ignore".
+        handle_unknown (str): How to handle unknown evidence values when transforming.
+        Can be either "error" (raise error if there is an unknown evidence value) or
+        "ignore" (unknown evidence values are encoded by 0). Defaults to "ignore".
 
-        count_evidence (bool, optional): If True, also create a column that
-        counts the number of present evidence for each row (and a column that counts the
-        number of absent evidence for each row if include_absent_evidence is True).
-        Defaults to False.
+        count_evidence (bool): If True, also create a column that counts the number of
+        present evidence for each row (and a column that counts the number of absent
+        evidence for each row if include_absent_evidence is True). Defaults to False.
 
-        n_most_frequent (Optional[int], optional): If not None, only
-        regard and encode the given number of most frequent evidence values. Defaults to
-        None.
+        n_most_frequent (Optional[int]): If not None, only regard and encode the given
+        number of most frequent evidence values. Defaults to None.
 
-        include_absent_evidence (bool, optional): If true, absent evidence are
-        also encoded. If True, only present evidence are encoded. Defaults to True.
+        include_absent_evidence (bool): If true, absent evidence are also encoded. If
+        True, only present evidence are encoded. Defaults to True.
 
-        column_present_evidence (str, optional): Name of the column of the input data X
-        that contains the lists of present evidence. Defaults to "evidence_present".
+        column_present_evidence (str): Name of the column of the input data X that
+        contains the lists of present evidence. Defaults to "evidence_present".
 
-        column_absent_evidence (str, optional): Name of the columns of the input data X
-        containing the lists of absent evidence. Defaults to "evidence_absent".
+        column_absent_evidence (str): Name of the columns of the input data X containing
+        the lists of absent evidence. Defaults to "evidence_absent".
         """
         super().__init__()
         self.handle_unknown = handle_unknown
