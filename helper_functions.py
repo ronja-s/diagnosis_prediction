@@ -45,31 +45,6 @@ def str_to_class(class_name: str):
     return getattr(sys.modules["__main__"], class_name)
 
 
-def check_preprocessing(
-    X: pd.DataFrame,
-    model: sklearn.base.BaseEstimator,
-    dim_reduction_algorithm: Optional[Type] = None,
-    n_dimensions: Optional[int] = None,
-    count_evidence: bool = False,
-    include_absent_evidence: bool = True,
-    n_most_frequent: Optional[int] = None,
-) -> None:
-    pipe = PipelineBuilder().get_pipe(
-        model=model,
-        dim_reduction_algorithm=dim_reduction_algorithm,
-        n_dimensions=n_dimensions,
-        count_evidence=count_evidence,
-        include_absent_evidence=include_absent_evidence,
-        n_most_frequent=n_most_frequent,
-    )
-    X_transformed = X
-
-    for name, transformer in pipe.steps[:-1]:
-        if transformer is not None:
-            X_transformed = transformer.fit_transform(X_transformed)
-            print(f"X after step {name}: {X_transformed}\nShape: {X_transformed.shape}")
-
-
 def evaluate_pipelines(
     X: pd.DataFrame,
     y: pd.Series,
@@ -107,20 +82,21 @@ def evaluate_pipelines(
             for count_evidence in count_evidence_values:
                 for include_absent_evidence in include_absent_evidence_values:
                     for n_most_frequent in n_most_frequent_values:
-                        try:
-                            pipes = PipelineBuilder().get_pipes(
-                                models=models,
-                                dim_reduction_algorithm=dim_reduction_algorithm,
-                                n_dimensions=n_dimensions,
-                                count_evidence=count_evidence,
-                                include_absent_evidence=include_absent_evidence,
-                                n_most_frequent=n_most_frequent,
-                            )
-                        except ValueError:
-                            # ignore parameter combinations which are not valid
-                            continue
+                        for model in models:
+                            model_name = model.__class__.__name__
+                            try:
+                                pipe = PipelineBuilder(
+                                    model=model,
+                                    dim_reduction_algorithm=dim_reduction_algorithm,
+                                    n_dimensions=n_dimensions,
+                                    count_evidence=count_evidence,
+                                    include_absent_evidence=include_absent_evidence,
+                                    n_most_frequent=n_most_frequent,
+                                ).get_pipe()
+                            except ValueError:
+                                # ignore parameter combinations which are not valid
+                                continue
 
-                        for model_name, pipe in pipes.items():
                             try:
                                 (
                                     test_accuracy,
@@ -209,7 +185,7 @@ def perform_gridsearch(
             if best_pipe_parameters["dim_reduction_algorithm"]
             else None
         )
-        best_pipeline = PipelineBuilder().get_pipe(
+        best_pipeline = PipelineBuilder(
             model=model,
             dim_reduction_algorithm=dim_reduction_algorithm,
             n_dimensions=int(best_pipe_parameters["n_dimensions"])
@@ -218,7 +194,7 @@ def perform_gridsearch(
             count_evidence=best_pipe_parameters["count_evidence"],
             include_absent_evidence=best_pipe_parameters["include_absent_evidence"],
             n_most_frequent=best_pipe_parameters["n_most_frequent"],
-        )
+        ).get_pipe()
 
         # perform grid search:
         param_grid = dict(

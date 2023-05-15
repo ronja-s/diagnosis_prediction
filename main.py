@@ -28,9 +28,9 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 import shap
+from pipeline_builder import PipelineBuilder
 
 from helper_functions import (
-    check_preprocessing,
     determine_best_parameters,
     evaluate_pipelines,
     perform_gridsearch,
@@ -63,7 +63,7 @@ cross_validation_params = {
 }
 
 # pipeline parameter ranges:
-models = [
+model_options = [
     DummyClassifier(strategy="prior"),
     KNeighborsClassifier(),
     DecisionTreeClassifier(max_depth=None),
@@ -78,17 +78,17 @@ models = [
     # Perceptron(),
     # GradientBoostingClassifier(),
 ]
-dim_reduction_algorithm_values = [
+dim_reduction_algorithm_options = [
     None,
     PCA,
     TruncatedSVD,
     Isomap,
     LocallyLinearEmbedding,
 ]
-n_dimensions_values = [10, 50, 100, 200, 300, 400, None]
-count_evidence_values = [False, True]
-include_absent_evidence_values = [False, True]
-n_most_frequent_values = [None]
+n_dimensions_options = [10, 50, 100, 200, 300, 400, None]
+count_evidence_options = [False, True]
+include_absent_evidence_options = [False, True]
+n_most_frequent_options = [None]
 
 # classifiers' hyperparameters for tuning overfitting:
 # note: try to minimize overfitting for the best models/pipes:
@@ -117,39 +117,35 @@ hyperparameters = {
     "LinearDiscriminantAnalysis": {"shrinkage": [None, 0.0, 0.3, 0.6, 1.0]},
 }
 
-# load data:
 print("Load the data.")
 X, y = DataLoader(multi_label=False).load(
     data_path=data_path, icd10_chapters_definition_path=icd10_chapters_definition_path
 )
-print("X:")
-print(X)
-print("y:")
-print(y)
+print("X:", X)
+print("y:", y)
 
-# %% check preprocessing:
+# %%
 print("Check the preprocessing.")
-check_preprocessing(
-    X=X,
-    model=models[0],
-    dim_reduction_algorithm=None,
-    n_dimensions=None,
-    count_evidence=False,
-    include_absent_evidence=True,
-    n_most_frequent=None,
-)
+PipelineBuilder(
+    model=model_options[1],
+    dim_reduction_algorithm=dim_reduction_algorithm_options[1],
+    n_dimensions=n_dimensions_options[1],
+    count_evidence=count_evidence_options[1],
+    include_absent_evidence=include_absent_evidence_options[1],
+    n_most_frequent=n_most_frequent_options[0],
+).print_preprocessing_steps(X=X)
 
 # %% evaluate pipelines (with cross validation):
 print("Train and evaluate different chosen models and parameters.")
 evaluate_pipelines(
     X=X,
     y=y,
-    models=models,
-    dim_reduction_algorithm_values=dim_reduction_algorithm_values,
-    n_dimensions_values=n_dimensions_values,
-    count_evidence_values=count_evidence_values,
-    include_absent_evidence_values=include_absent_evidence_values,
-    n_most_frequent_values=n_most_frequent_values,
+    models=model_options,
+    dim_reduction_algorithm_values=dim_reduction_algorithm_options,
+    n_dimensions_values=n_dimensions_options,
+    count_evidence_values=count_evidence_options,
+    include_absent_evidence_values=include_absent_evidence_options,
+    n_most_frequent_values=n_most_frequent_options,
     cross_validation_params=cross_validation_params,
     result_file_path=accuracies_file_path,
 )
