@@ -3,6 +3,7 @@ import os
 import warnings
 
 import numpy as np
+import shap
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.dummy import DummyClassifier
@@ -27,16 +28,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
-import shap
-from pipeline_builder import PipelineBuilder
 
-from helper_functions import (
-    determine_best_parameters,
-    evaluate_pipelines,
-    perform_gridsearch,
-    plot_grid_search_results,
-)
 from data_loader import DataLoader
+from evaluator import Evaluator
+from pipeline_builder import PipelineBuilder
 
 warnings.filterwarnings("ignore")
 # set random number generator seed for reproducibilty
@@ -49,10 +44,6 @@ if not os.path.exists(results_dir):
 
 data_path = "./data/test_cases.json"
 icd10_chapters_definition_path = "./data/icd10_chapters_definition.csv"
-accuracies_file_path = results_dir + "accuracies.csv"
-best_models_file_path = results_dir + "best_models.csv"
-grid_search_file_path = results_dir + "grid_search.csv"
-best_hyperparameters_file_path = results_dir + "best_hyperparams.csv"
 
 cross_validation_params = {
     "cv": 5,
@@ -64,19 +55,19 @@ cross_validation_params = {
 
 # pipeline parameter ranges:
 model_options = [
-    DummyClassifier(strategy="prior"),
+    DummyClassifier(),  # strategy="prior"
     KNeighborsClassifier(),
-    DecisionTreeClassifier(max_depth=None),
+    DecisionTreeClassifier(),
     LogisticRegression(),
     LinearSVC(),
     SVC(),
     MLPClassifier(),
     LinearDiscriminantAnalysis(solver="lsqr"),
     RandomForestClassifier(),
-    # ExtraTreesClassifier(),
-    # PassiveAggressiveClassifier(),
-    # Perceptron(),
-    # GradientBoostingClassifier(),
+    ExtraTreesClassifier(),
+    PassiveAggressiveClassifier(),
+    Perceptron(),
+    GradientBoostingClassifier(),
 ]
 dim_reduction_algorithm_options = [
     None,
@@ -93,18 +84,12 @@ n_most_frequent_options = [None]
 # classifiers' hyperparameters for tuning overfitting:
 # note: try to minimize overfitting for the best models/pipes:
 hyperparameters = {
-    "LogisticRegression": {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
-    "LinearSVC": {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
-    # "PassiveAggressiveClassifier": {
-    #     "C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]
-    # },
-    "RandomForestClassifier": {
-        "max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]
-    },
-    # "ExtraTreesClassifier": {
-    #     "max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]
-    # },
-    "MLPClassifier": {
+    LogisticRegression: {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
+    LinearSVC: {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
+    "PassiveAggressiveClassifier": {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
+    RandomForestClassifier: {"max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]},
+    "ExtraTreesClassifier": {"max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]},
+    MLPClassifier: {
         "alpha": [
             0.0001,
             0.005,
@@ -112,9 +97,9 @@ hyperparameters = {
             0.005,
             0.01,
         ],
-        # "hidden_layer_sizes": [(200,), (100,), (50,), (20,), (10,), (5,)],
+        "hidden_layer_sizes": [(200,), (100,), (50,), (20,), (10,), (5,)],
     },
-    "LinearDiscriminantAnalysis": {"shrinkage": [None, 0.0, 0.3, 0.6, 1.0]},
+    LinearDiscriminantAnalysis: {"shrinkage": [None, 0.0, 0.3, 0.6, 1.0]},
 }
 
 print("Load the data.")
@@ -125,7 +110,7 @@ print("X:", X)
 print("y:", y)
 
 # %%
-print("Check the preprocessing.")
+print("Test preprocessing steps.")
 PipelineBuilder(
     model=model_options[1],
     dim_reduction_algorithm=dim_reduction_algorithm_options[1],
@@ -135,56 +120,43 @@ PipelineBuilder(
     n_most_frequent=n_most_frequent_options[0],
 ).print_preprocessing_steps(X=X)
 
-# %% evaluate pipelines (with cross validation):
-print("Train and evaluate different chosen models and parameters.")
-evaluate_pipelines(
+# %%
+eval = Evaluator(
     X=X,
     y=y,
-    models=model_options,
-    dim_reduction_algorithm_values=dim_reduction_algorithm_options,
-    n_dimensions_values=n_dimensions_options,
-    count_evidence_values=count_evidence_options,
-    include_absent_evidence_values=include_absent_evidence_options,
-    n_most_frequent_values=n_most_frequent_options,
+    model_options=model_options,
+    dim_reduction_algorithm_options=dim_reduction_algorithm_options,
+    n_dimensions_options=n_dimensions_options,
+    count_evidence_options=count_evidence_options,
+    include_absent_evidence_options=include_absent_evidence_options,
+    n_most_frequent_options=n_most_frequent_options,
     cross_validation_params=cross_validation_params,
-    result_file_path=accuracies_file_path,
+    results_directory=results_dir,
 )
+
+# %% evaluate pipelines (with cross validation):
+print("Train and evaluate chosen pipelines.")
+eval.train_and_evaluate(verbose=True)
 
 # %% determine best pipelines/models:
 print("For each model: Find the best performing parameters.")
-determine_best_parameters(
-    input_file_path=accuracies_file_path,
-    accuracy_column="test_accuracy",
-    result_file_path=best_models_file_path,
-)
+eval.get_best_parameters()
 
 # %% perform grid search for models hyperparameters in order to try minimizing overfitting:
 print(
-    "For each model: Try to fix overfitting by varying parameter which reflects the model complexity."
+    "For each model: Try to fix overfitting by varying a parameter which reflects the model complexity."
 )
-perform_gridsearch(
-    X=X,
-    y=y,
-    best_models_file_path=best_models_file_path,
-    cross_validation_params=cross_validation_params,
-    hyperparameters=hyperparameters,
-    result_file_path=grid_search_file_path,
-)
+eval.perform_gridsearch(hyperparameters=hyperparameters, with_plots=True, verbose=True)
 
 # %% determine best hyperparameters:
 print(
-    "For each model, find the best value for this parameter which reflects the model complexity."
+    "For each model: Find the best performing parameters after performing gridsearch."
 )
-determine_best_parameters(
-    input_file_path=grid_search_file_path,
-    accuracy_column="mean_test_accuracy",
-    result_file_path=best_hyperparameters_file_path,
-)
+eval.get_best_parameters()
 
-# %% plot grid search results:
-print("Plot the results.")
-plot_grid_search_results(
-    grid_search_file_path=grid_search_file_path, result_dir=results_dir
+# %% plot performance for other paramaters of the pipeline:
+eval.plot_performance(
+    model_class=LinearDiscriminantAnalysis, parameters=["n_dimensions"]
 )
 
 # %%
