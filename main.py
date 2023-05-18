@@ -1,9 +1,9 @@
 # %%
 import os
+import random
 import warnings
 
 import numpy as np
-import shap
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.dummy import DummyClassifier
@@ -34,8 +34,17 @@ from evaluator import Evaluator
 from pipeline_builder import PipelineBuilder
 
 warnings.filterwarnings("ignore")
+
+
 # set random number generator seed for reproducibilty
-np.random.seed(0)
+def set_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["TF_DETERMINISTIC_OPS"] = "1"
+
+
+set_seed(31415)
 
 # global variables:
 results_dir = "./test_results/"
