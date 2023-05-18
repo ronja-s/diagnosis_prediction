@@ -12,6 +12,10 @@ from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder, StandardScaler
 from evidence_encoder import EvidenceEncoder
 
 
+class PipelineParameterCombinationError(Exception):
+    ...
+
+
 class PipelineBuilder:
     """Class for building a pipeline for predicting diagnoses."""
 
@@ -28,27 +32,28 @@ class PipelineBuilder:
         model (sklearn.base.BaseEstimator): Classifier used for the prediction.
 
         dim_reduction_algorithm (Optional[Type]): Algorithm that should be used to
-        reduce the dimensions of the feature space. If None, then none is used.
-        Defaults to None.
+        reduce the dimensions of the feature space. If None, then none is used. Defaults
+        to None.
 
         n_dimensions (Optional[int]): Number of dimensions that the output of the
         dimensionality reduction algorithm should have. If parameter
-        "dim_reduction_algorithm" is None, "n_dimensions" must be None as well.
-        Defaults to None.
+        "dim_reduction_algorithm" is None, "n_dimensions" must be None as well. Defaults
+        to None.
 
         count_evidence (bool): If True, include a feature for the overall number of
         present evidence for each patient (and a feature for the overall number of
-        absent evidence for each patient if "include_absent_evidence" is True).
-        Defaults to False.
+        absent evidence for each patient if "include_absent_evidence" is True). Defaults
+        to False.
 
         include_absent_evidence (bool): If True, absent evidence are also used as
         features. Otherwise, only present evidence are used. Defaults to True.
 
-        n_most_frequent (Optional[int]): If not None, only use the given number of
-        most frequent evidence as festures. Defaults to None.
+        n_most_frequent (Optional[int]): If not None, only use the given number of most
+        frequent evidence as festures. Defaults to None.
 
         Raises:
-            ValueError: If non-valid parameter combinations are used.
+            PipelineParameterCombinationError: If non-valid parameter combinations are
+            used.
         """
         self.model = model
         self.dim_reduction_algorithm = dim_reduction_algorithm
@@ -154,6 +159,6 @@ class PipelineBuilder:
 
     def __check_if_parameters_are_valid(self) -> None:
         if (self.dim_reduction_algorithm is None) and (self.n_dimensions is not None):
-            raise ValueError(
+            raise PipelineParameterCombinationError(
                 "If dim_reduction_algorithm is None, n_dimensions must be None."
             )

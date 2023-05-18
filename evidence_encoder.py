@@ -39,7 +39,7 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
         n_most_frequent (Optional[int]): If not None, only regard and encode the given
         number of most frequent evidence values. Defaults to None.
 
-        include_absent_evidence (bool): If true, absent evidence are also encoded. If
+        include_absent_evidence (bool): If True, absent evidence are also encoded. If
         True, only present evidence are encoded. Defaults to True.
 
         column_present_evidence (str): Name of the column of the input data X that

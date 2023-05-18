@@ -86,9 +86,9 @@ n_most_frequent_options = [None]
 hyperparameters = {
     LogisticRegression: {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
     LinearSVC: {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
-    "PassiveAggressiveClassifier": {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
+    PassiveAggressiveClassifier: {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
     RandomForestClassifier: {"max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]},
-    "ExtraTreesClassifier": {"max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]},
+    ExtraTreesClassifier: {"max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]},
     MLPClassifier: {
         "alpha": [
             0.0001,
@@ -112,12 +112,12 @@ print("y:", y)
 # %%
 print("Test preprocessing steps.")
 PipelineBuilder(
-    model=model_options[1],
-    dim_reduction_algorithm=dim_reduction_algorithm_options[1],
-    n_dimensions=n_dimensions_options[1],
-    count_evidence=count_evidence_options[1],
-    include_absent_evidence=include_absent_evidence_options[1],
-    n_most_frequent=n_most_frequent_options[0],
+    model=GradientBoostingClassifier(),
+    dim_reduction_algorithm=PCA,
+    n_dimensions=None,
+    count_evidence=False,
+    include_absent_evidence=False,
+    n_most_frequent=None,
 ).print_preprocessing_steps(X=X)
 
 # %%
@@ -134,21 +134,21 @@ eval = Evaluator(
     results_directory=results_dir,
 )
 
-# %% evaluate pipelines (with cross validation):
+# %%
 print("Train and evaluate chosen pipelines.")
 eval.train_and_evaluate(verbose=True)
 
-# %% determine best pipelines/models:
+# %%
 print("For each model: Find the best performing parameters.")
 eval.get_best_parameters()
 
-# %% perform grid search for models hyperparameters in order to try minimizing overfitting:
+# %%
 print(
-    "For each model: Try to fix overfitting by varying a parameter which reflects the model complexity."
+    "For each model: Try to fix overfitting by varying hyperparameter(s) that reflect the model complexity."
 )
 eval.perform_gridsearch(hyperparameters=hyperparameters, with_plots=True, verbose=True)
 
-# %% determine best hyperparameters:
+# %%
 print(
     "For each model: Find the best performing parameters after performing gridsearch."
 )
@@ -160,12 +160,3 @@ eval.plot_performance(
 )
 
 # %%
-# analyze feature importance:
-# import shap
-# explainer = shap.Explainer(pipes[best_model_name])
-# shap_values = explainer(X)
-# shap.plots.beeswarm(shap_values)
-
-# %%[markdown]
-# Further doing (ideas):
-# - include whether an evidence is initial -> one hot encoding (1 column for each evidence)

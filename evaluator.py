@@ -12,6 +12,7 @@ from sklearn.model_selection import GridSearchCV, cross_validate
 from sklearn.pipeline import Pipeline
 
 from pipeline_builder import PipelineBuilder
+from pipeline_builder import PipelineParameterCombinationError
 
 
 class Evaluator:
@@ -81,6 +82,11 @@ class Evaluator:
                         ) in self.include_absent_evidence_options:
                             for n_most_frequent in self.n_most_frequent_options:
                                 try:
+                                    if verbose:
+                                        print(
+                                            f"Evaluate for: model={model}, dim_reduction_algorithm={self.__get_class_name(dim_reduction_algorithm)}, n_dimensions={n_dimensions}, count_evidences={count_evidence}, include_absent_evidence={include_absent_evidence}, n_most_frequent={n_most_frequent}"
+                                        )
+
                                     pipe = PipelineBuilder(
                                         model=model,
                                         dim_reduction_algorithm=dim_reduction_algorithm,
@@ -90,20 +96,20 @@ class Evaluator:
                                         n_most_frequent=n_most_frequent,
                                     ).get_pipe()
                                     scores = cross_validate(
-                                        pipe,
-                                        self.X,
-                                        self.y,
+                                        estimator=pipe,
+                                        X=self.X,
+                                        y=self.y,
                                         **self.cross_validation_params,
                                     )
                                     test_accuracy = scores["test_accuracy"].mean()
                                     train_accuracy = scores["train_accuracy"].mean()
-                                except ValueError:
+                                except PipelineParameterCombinationError:
                                     # ignore parameter combinations which are not valid
                                     continue
 
                                 if verbose:
                                     print(
-                                        f"Evaluate for: model={model}, dim_reduction_algorithm={self.__get_class_name(dim_reduction_algorithm)}, n_dimensions={n_dimensions}, count_evidences={count_evidence}, include_absent_evidence={include_absent_evidence}, n_most_frequent={n_most_frequent}\n => Test accuracy={test_accuracy}, train accuracy={train_accuracy}"
+                                        f"=> Test accuracy={test_accuracy}, train accuracy={train_accuracy}"
                                     )
 
                                 self.train_and_evaluate_df = self.train_and_evaluate_df.append(
@@ -228,7 +234,6 @@ class Evaluator:
             input_df=self.train_and_evaluate_df,
             performance_column=self._TEST_ACCURACY_COLUMN,
             groupby_column=self._MODEL_STR_COLUMN,
-            performance_ascending=False,
         )
         self.__append_gridsearch_results_to_best_parameters()
         self._write_files(
@@ -326,7 +331,6 @@ class Evaluator:
                 input_df=self.grid_search_df,
                 performance_column=self._TEST_ACCURACY_COLUMN,
                 groupby_column=self._MODEL_STR_COLUMN,
-                performance_ascending=False,
             )
             shared_columns = self.best_parameters_df.columns.intersection(
                 best_gridsearch_df.columns
@@ -345,18 +349,20 @@ class Evaluator:
                 new_data_df,
                 overwrite=True,
             )
+            self.best_parameters_df = self.best_parameters_df.sort_values(
+                self._TEST_ACCURACY_COLUMN, ascending=False
+            )
 
     @staticmethod
     def __get_best_performing_entries(
         input_df: pd.DataFrame,
         performance_column: str,
         groupby_column: str,
-        performance_ascending: bool = False,
     ) -> pd.DataFrame:
         best_groups_df = (
             input_df.groupby(groupby_column)
             .apply(lambda df: df.loc[(df[performance_column].idxmax())])
-            .sort_values(performance_column, ascending=performance_ascending)
+            .sort_values(performance_column, ascending=False)
             .reset_index(drop=True)
         )
         return best_groups_df
@@ -369,11 +375,13 @@ class Evaluator:
             ].map(self.__get_class_name)
         str_df.to_csv(file, index=False)
 
-    def __write_pickle(self, df: pd.DataFrame, file: str) -> None:
+    @staticmethod
+    def __write_pickle(df: pd.DataFrame, file: str) -> None:
         with open(file, "wb") as f:
             pickle.dump(obj=df, file=f)
 
-    def __get_class_name(self, cls):
+    @staticmethod
+    def __get_class_name(cls):
         if cls is None:
             return None
         else:
