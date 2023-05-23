@@ -1,7 +1,7 @@
 import ast
 import os
 import pickle
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,11 +11,10 @@ from sklearn.base import BaseEstimator
 from sklearn.model_selection import GridSearchCV, cross_validate
 from sklearn.pipeline import Pipeline
 
-from pipeline_builder import PipelineBuilder
-from pipeline_builder import PipelineParameterCombinationError
+from pipeline_builder import PipelineBuilder, PipelineParameterCombinationError
 
 
-class Evaluator:
+class PerformanceEvaluator:
     """Class for evaluating a variety of different pipelines and hyperparameters in
     order to find the best performing one.
     """
@@ -27,9 +26,10 @@ class Evaluator:
     _COUNT_EVIDENCE_COLUMN = "count_evidence"
     _INCLUDE_ABSENT_EVIDENCE_COLUMN = "include_absent_evidence"
     _N_MOST_FREQUENT_COLUMN = "n_most_frequent"
-    _TRAIN_ACCURACY_COLUMN = "mean_train_accuracy"
-    _TEST_ACCURACY_COLUMN = "mean_test_accuracy"
+    _TRAIN_SCORE_COLUMN = "mean_train_score"
+    _TEST_SCORE_COLUMN = "mean_test_score"
     _PARAMS_COLUMN = "params"
+    _PIPELINE_COLUMN = "pipeline"
 
     def __init__(
         self,
@@ -55,14 +55,16 @@ class Evaluator:
         self.cross_validation_params = cross_validation_params
         self.results_directory = results_directory
 
-        self.train_and_evaluate_file_path = self._get_file_path(
+        self.train_and_evaluate_df = None
+        self.grid_search_df = None
+        self.best_parameters_df = None
+
+        self.TRAIN_AND_EVALUATE_FILE_PATH = self._get_file_path(
             filename="train_and_evaluate"
         )
-        self.train_and_evaluate_df = None
-        self.best_parameters_file_path = self._get_file_path(filename="best_parameters")
-        self.best_parameters_df = None
-        self.grid_search_file_path = self._get_file_path(filename="grid_search")
-        self.grid_search_df = None
+        self.GRID_SEARCH_FILE_PATH = self._get_file_path(filename="grid_search")
+        self.BEST_PARAMETERS_FILE_PATH = self._get_file_path(filename="best_parameters")
+        self.BEST_PREDICTOR_FILE_PATH = self._get_file_path(filename="best_predictor")
 
     def train_and_evaluate(
         self,
@@ -101,8 +103,8 @@ class Evaluator:
                                         y=self.y,
                                         **self.cross_validation_params,
                                     )
-                                    test_accuracy = scores["test_accuracy"].mean()
-                                    train_accuracy = scores["train_accuracy"].mean()
+                                    test_accuracy = scores["test_score"].mean()
+                                    train_accuracy = scores["train_score"].mean()
                                 except PipelineParameterCombinationError:
                                     # ignore parameter combinations which are not valid
                                     continue
@@ -121,21 +123,17 @@ class Evaluator:
                                         self._COUNT_EVIDENCE_COLUMN: count_evidence,
                                         self._INCLUDE_ABSENT_EVIDENCE_COLUMN: include_absent_evidence,
                                         self._N_MOST_FREQUENT_COLUMN: n_most_frequent,
-                                        self._TRAIN_ACCURACY_COLUMN: train_accuracy,
-                                        self._TEST_ACCURACY_COLUMN: test_accuracy,
+                                        self._TRAIN_SCORE_COLUMN: train_accuracy,
+                                        self._TEST_SCORE_COLUMN: test_accuracy,
+                                        self._PIPELINE_COLUMN: pipe,
                                     },
                                     ignore_index=True,
                                 )
         self._write_files(
-            df=self.train_and_evaluate_df, file_path=self.train_and_evaluate_file_path
+            df=self.train_and_evaluate_df, file_path=self.TRAIN_AND_EVALUATE_FILE_PATH
         )
-        return self.train_and_evaluate_df
-
-    def get_best_parameters(self) -> pd.DataFrame:
-        """For each classifier, get the best performing parameters which were used in
-        the training."""
         self._set_best_parameters_df()
-        return self.best_parameters_df
+        return self.train_and_evaluate_df
 
     def perform_gridsearch(
         self,
@@ -159,11 +157,13 @@ class Evaluator:
                 for (key, value) in hyperparameters[model_class].items()
             )
             single_grid_search_df = self._perform_gridsearch_for_pipeline(
-                best_pipeline=best_pipeline, param_grid=param_grid
+                pipeline=best_pipeline, param_grid=param_grid
             )
             single_grid_search_df[self._MODEL_COLUMN] = model
             single_grid_search_df[self._MODEL_STR_COLUMN] = str(model)
-            self.grid_search_df = self.grid_search_df.append(single_grid_search_df)
+            self.grid_search_df = self.grid_search_df.append(
+                single_grid_search_df, ignore_index=True
+            )
 
             if verbose:
                 print(
@@ -175,7 +175,8 @@ class Evaluator:
                     parameters=param_grid.keys(),
                 )
 
-        self._write_files(df=self.grid_search_df, file_path=self.grid_search_file_path)
+        self._write_files(df=self.grid_search_df, file_path=self.GRID_SEARCH_FILE_PATH)
+        self._set_best_parameters_df()
         return self.grid_search_df
 
     def plot_performance(self, model_class: Type, parameters: List[str]) -> None:
@@ -194,13 +195,13 @@ class Evaluator:
                 param_values,
                 train_accuracy_values,
                 marker="o",
-                label=self._TRAIN_ACCURACY_COLUMN,
+                label=self._TRAIN_SCORE_COLUMN,
             )
             ax.plot(
                 param_values,
                 test_accuracies_values,
                 marker="o",
-                label=self._TEST_ACCURACY_COLUMN,
+                label=self._TEST_SCORE_COLUMN,
             )
             ax.set_title(self.__get_class_name(model_class))
             ax.set_xlabel(parameter)
@@ -213,57 +214,74 @@ class Evaluator:
             fig.savefig(plot_file_path, bbox_inches="tight", dpi=150)
             plt.close(fig)
 
+    def get_best_predictor(self) -> BaseEstimator:
+        self.best_parameters_df = self._load_dataframe(
+            df=self.best_parameters_df, file_path=self.BEST_PARAMETERS_FILE_PATH
+        )
+        best_pipeline = self.best_parameters_df.loc[
+            self.best_parameters_df[self._TEST_SCORE_COLUMN].idxmax()
+        ][self._PIPELINE_COLUMN]
+        best_predictor = best_pipeline.fit(self.X, self.y)
+        self.__write_pickle(
+            data=best_predictor, file_path=self.BEST_PREDICTOR_FILE_PATH + ".pkl"
+        )
+        return best_predictor
+
     def _get_file_path(self, filename: str) -> str:
         return os.path.join(self.results_directory, filename)
 
-    def _load_dataframe(self, df: pd.DataFrame, file_path: str) -> None:
+    @staticmethod
+    def _load_dataframe(df: pd.DataFrame, file_path: str) -> pd.DataFrame:
         if df is None:
-            with open(file_path + ".pkl", "rb") as f:
-                df = pickle.load(f)
+            with open(file_path + ".pkl", "rb") as file:
+                df = pickle.load(file)
         return df
 
     def _write_files(self, df: pd.DataFrame, file_path: str) -> None:
-        self.__write_csv(df=df, file=file_path + ".csv")
-        self.__write_pickle(df=df, file=file_path + ".pkl")
+        if df.empty:
+            return
+        self.__write_csv(df=df, file_path=file_path + ".csv")
+        self.__write_pickle(data=df, file_path=file_path + ".pkl")
 
     def _set_best_parameters_df(self) -> None:
         self.train_and_evaluate_df = self._load_dataframe(
-            df=self.train_and_evaluate_df, file_path=self.train_and_evaluate_file_path
+            df=self.train_and_evaluate_df, file_path=self.TRAIN_AND_EVALUATE_FILE_PATH
         )
         self.best_parameters_df = self.__get_best_performing_entries(
-            input_df=self.train_and_evaluate_df,
-            performance_column=self._TEST_ACCURACY_COLUMN,
+            df=self.train_and_evaluate_df,
+            performance_column=self._TEST_SCORE_COLUMN,
             groupby_column=self._MODEL_STR_COLUMN,
         )
         self.__append_gridsearch_results_to_best_parameters()
         self._write_files(
-            df=self.best_parameters_df, file_path=self.best_parameters_file_path
+            df=self.best_parameters_df, file_path=self.BEST_PARAMETERS_FILE_PATH
         )
 
     def _perform_gridsearch_for_pipeline(
-        self, best_pipeline: Pipeline, param_grid
+        self, pipeline: Pipeline, param_grid
     ) -> pd.DataFrame:
         grid_search_cv = GridSearchCV(
-            estimator=best_pipeline,
+            estimator=pipeline,
             param_grid=param_grid,
-            refit=False,
+            refit=True,
             **self.cross_validation_params,
         )
         grid_search_cv.fit(self.X, self.y)
         results_df = pd.DataFrame(grid_search_cv.cv_results_)[
             [
                 self._PARAMS_COLUMN,
-                self._TEST_ACCURACY_COLUMN,
-                self._TRAIN_ACCURACY_COLUMN,
+                self._TEST_SCORE_COLUMN,
+                self._TRAIN_SCORE_COLUMN,
             ]
         ]
+        results_df[self._PIPELINE_COLUMN] = grid_search_cv.best_estimator_
         return results_df
 
     def _get_best_pipeline_for_model(
         self, model_class: Type
     ) -> Optional[Tuple[BaseEstimator, Pipeline]]:
         self.best_parameters_df = self._load_dataframe(
-            df=self.best_parameters_df, file_path=self.best_parameters_file_path
+            df=self.best_parameters_df, file_path=self.BEST_PARAMETERS_FILE_PATH
         )
         model_df = (
             self.best_parameters_df[
@@ -289,10 +307,10 @@ class Evaluator:
             return None, None
 
     def __get_performance_for_parameter(
-        self, model_class: BaseEstimator, parameter: str
+        self, model_class: Type, parameter: str
     ) -> Tuple[List]:
         self.train_and_evaluate_df = self._load_dataframe(
-            df=self.train_and_evaluate_df, file_path=self.train_and_evaluate_file_path
+            df=self.train_and_evaluate_df, file_path=self.TRAIN_AND_EVALUATE_FILE_PATH
         )
         if parameter in self.train_and_evaluate_df.columns:
             model_df = self.train_and_evaluate_df[
@@ -302,7 +320,7 @@ class Evaluator:
             ]
         else:
             self.grid_search_df = self._load_dataframe(
-                df=self.grid_search_df, file_path=self.grid_search_file_path
+                df=self.grid_search_df, file_path=self.GRID_SEARCH_FILE_PATH
             )
             model_df = self.grid_search_df[
                 self.grid_search_df[self._MODEL_COLUMN].map(
@@ -315,21 +333,21 @@ class Evaluator:
             )
         return (
             model_df[parameter],
-            model_df[self._TRAIN_ACCURACY_COLUMN],
-            model_df[self._TEST_ACCURACY_COLUMN],
+            model_df[self._TRAIN_SCORE_COLUMN],
+            model_df[self._TEST_SCORE_COLUMN],
         )
 
     def __append_gridsearch_results_to_best_parameters(self) -> None:
         try:
             self.grid_search_df = self._load_dataframe(
-                df=self.grid_search_df, file_path=self.grid_search_file_path
+                df=self.grid_search_df, file_path=self.GRID_SEARCH_FILE_PATH
             )
         except FileNotFoundError:
             return
         if not self.grid_search_df.empty:
             best_gridsearch_df = self.__get_best_performing_entries(
-                input_df=self.grid_search_df,
-                performance_column=self._TEST_ACCURACY_COLUMN,
+                df=self.grid_search_df,
+                performance_column=self._TEST_SCORE_COLUMN,
                 groupby_column=self._MODEL_STR_COLUMN,
             )
             shared_columns = self.best_parameters_df.columns.intersection(
@@ -350,38 +368,40 @@ class Evaluator:
                 overwrite=True,
             )
             self.best_parameters_df = self.best_parameters_df.sort_values(
-                self._TEST_ACCURACY_COLUMN, ascending=False
+                self._TEST_SCORE_COLUMN, ascending=False
             )
 
     @staticmethod
     def __get_best_performing_entries(
-        input_df: pd.DataFrame,
+        df: pd.DataFrame,
         performance_column: str,
         groupby_column: str,
     ) -> pd.DataFrame:
-        best_groups_df = (
-            input_df.groupby(groupby_column)
-            .apply(lambda df: df.loc[(df[performance_column].idxmax())])
+        best_indices = df.groupby(groupby_column)[performance_column].idxmax().values
+        best_entries_df = (
+            df.iloc[best_indices]
             .sort_values(performance_column, ascending=False)
-            .reset_index(drop=True)
+            .reset_index()
         )
-        return best_groups_df
+        return best_entries_df
 
-    def __write_csv(self, df: pd.DataFrame, file: str) -> None:
-        str_df = df.copy().drop(columns=self._MODEL_STR_COLUMN)
+    def __write_csv(self, df: pd.DataFrame, file_path: str) -> None:
+        str_df = df.copy().drop(
+            columns=[self._MODEL_STR_COLUMN, self._PIPELINE_COLUMN], errors="ignore"
+        )
         if self._DIM_REDUCTION_ALGORITHM_COLUMN in str_df.columns:
             str_df[self._DIM_REDUCTION_ALGORITHM_COLUMN] = str_df[
                 self._DIM_REDUCTION_ALGORITHM_COLUMN
             ].map(self.__get_class_name)
-        str_df.to_csv(file, index=False)
+        str_df.to_csv(file_path, index=False)
 
     @staticmethod
-    def __write_pickle(df: pd.DataFrame, file: str) -> None:
-        with open(file, "wb") as f:
-            pickle.dump(obj=df, file=f)
+    def __write_pickle(data: Any, file_path: str) -> None:
+        with open(file_path, "wb") as f:
+            pickle.dump(obj=data, file=f)
 
     @staticmethod
-    def __get_class_name(cls):
+    def __get_class_name(cls: Type) -> Optional[str]:
         if cls is None:
             return None
         else:

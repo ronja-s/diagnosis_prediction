@@ -1,7 +1,8 @@
 import json
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 
 class DataLoader:
@@ -21,7 +22,10 @@ class DataLoader:
         self._TARGET_COLUMN = "expected_condition_icd10_blocks"
 
     def load(
-        self, data_path: str, icd10_chapters_definition_path: str
+        self,
+        data_path: str,
+        icd10_chapters_definition_path: str,
+        test_size: Optional[float] = None,
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """
         Args:
@@ -30,12 +34,18 @@ class DataLoader:
             icd10_chapters_definition_path (str): Path to the file containing the
                 definitions of the ICD-10 chapters.
 
-        Returns:
-            Tuple[pd.DataFrame, pd.Series]: (Feature dataframe X, target series y)
+            test_size (Optional[float]): Percentage of the data that should be held
+            back as test set. If None, then no data split is performed. Default to None
 
-            Columns of feature dataframe: sex (str), age_in_months (int),
+        Returns:
+            Tuple[pd.DataFrame, pd.Series]:
+            (X, y) if test_split is None;
+            (X_train, X_test, y_train, y_test) if test_split is not None;
+
+            Columns of feature dataframe X: sex (str), age_in_months (int),
             evidence_present (List[str]), evidence_absent (List[str]);
-            Name of target series: expected_condition_icd10_blocks (List[str] or str,
+
+            Name of target series y: expected_condition_icd10_blocks (List[str] or str,
             depending on parameter multi_label)
         """
         self._load_raw_dataframe(data_path=data_path)
@@ -44,7 +54,10 @@ class DataLoader:
         )
         y = self._data_df[self._TARGET_COLUMN]
         X = self._data_df.drop(columns=[self._TARGET_COLUMN])
-        return X, y
+        if test_size is None:
+            return X, y
+        else:
+            return train_test_split(X, y, test_size=test_size)
 
     def _load_raw_dataframe(self, data_path: str) -> None:
         with open(data_path, encoding="utf8") as json_file:

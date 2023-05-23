@@ -20,9 +20,7 @@ from sklearn.linear_model import (
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
 from sklearn.metrics import (
     accuracy_score,
-    balanced_accuracy_score,
     make_scorer,
-    top_k_accuracy_score,
 )
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
@@ -30,7 +28,7 @@ from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 
 from data_loader import DataLoader
-from evaluator import Evaluator
+from performance_evaluator import PerformanceEvaluator
 from pipeline_builder import PipelineBuilder
 
 warnings.filterwarnings("ignore")
@@ -47,45 +45,44 @@ def set_seed(seed: int):
 set_seed(31415)
 
 # global variables:
-results_dir = "./test_results/"
+results_dir = "./results/"
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 
 data_path = "./data/test_cases.json"
 icd10_chapters_definition_path = "./data/icd10_chapters_definition.csv"
 
+performance_metric = accuracy_score
 cross_validation_params = {
     "cv": 5,
     "return_train_score": True,
-    "scoring": {
-        "accuracy": make_scorer(accuracy_score),
-    },
+    "scoring": make_scorer(performance_metric),
 }
 
 # pipeline parameter ranges:
 model_options = [
     DummyClassifier(),  # strategy="prior"
-    KNeighborsClassifier(),
-    DecisionTreeClassifier(),
-    LogisticRegression(),
+    # KNeighborsClassifier(),
+    # DecisionTreeClassifier(),
+    # LogisticRegression(),
     LinearSVC(),
-    SVC(),
-    MLPClassifier(),
+    # SVC(),
+    # MLPClassifier(),
     LinearDiscriminantAnalysis(solver="lsqr"),
-    RandomForestClassifier(),
-    ExtraTreesClassifier(),
-    PassiveAggressiveClassifier(),
-    Perceptron(),
-    GradientBoostingClassifier(),
+    # RandomForestClassifier(),
+    # ExtraTreesClassifier(),
+    # PassiveAggressiveClassifier(),
+    # Perceptron(),
+    # GradientBoostingClassifier(),
 ]
 dim_reduction_algorithm_options = [
     None,
     PCA,
-    TruncatedSVD,
-    Isomap,
-    LocallyLinearEmbedding,
+    # TruncatedSVD,
+    # Isomap,
+    # LocallyLinearEmbedding,
 ]
-n_dimensions_options = [10, 50, 100, 200, 300, 400, None]
+n_dimensions_options = [10, 50, 100, 200, None]
 count_evidence_options = [False, True]
 include_absent_evidence_options = [False, True]
 n_most_frequent_options = [None]
@@ -113,24 +110,14 @@ hyperparameters = {
 
 print("Load the data.")
 X, y = DataLoader(multi_label=False).load(
-    data_path=data_path, icd10_chapters_definition_path=icd10_chapters_definition_path
+    data_path=data_path,
+    icd10_chapters_definition_path=icd10_chapters_definition_path,
+    test_size=None,
 )
 print("X:", X)
 print("y:", y)
 
-# %%
-print("Test preprocessing steps.")
-PipelineBuilder(
-    model=GradientBoostingClassifier(),
-    dim_reduction_algorithm=PCA,
-    n_dimensions=None,
-    count_evidence=False,
-    include_absent_evidence=False,
-    n_most_frequent=None,
-).print_preprocessing_steps(X=X)
-
-# %%
-eval = Evaluator(
+eval = PerformanceEvaluator(
     X=X,
     y=y,
     model_options=model_options,
@@ -148,24 +135,15 @@ print("Train and evaluate chosen pipelines.")
 eval.train_and_evaluate(verbose=True)
 
 # %%
-print("For each model: Find the best performing parameters.")
-eval.get_best_parameters()
-
-# %%
 print(
     "For each model: Try to fix overfitting by varying hyperparameter(s) that reflect the model complexity."
 )
 eval.perform_gridsearch(hyperparameters=hyperparameters, with_plots=True, verbose=True)
 
-# %%
-print(
-    "For each model: Find the best performing parameters after performing gridsearch."
-)
-eval.get_best_parameters()
+# %% make predictions with best performing pipeline:
+eval.get_best_predictor()
 
 # %% plot performance for other paramaters of the pipeline:
-eval.plot_performance(
-    model_class=LinearDiscriminantAnalysis, parameters=["n_dimensions"]
-)
+eval.plot_performance(model_class=LinearSVC, parameters=["n_dimensions"])
 
 # %%
