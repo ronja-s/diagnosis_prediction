@@ -18,10 +18,7 @@ from sklearn.linear_model import (
     Perceptron,
 )
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
-from sklearn.metrics import (
-    accuracy_score,
-    make_scorer,
-)
+from sklearn.metrics import accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
@@ -29,7 +26,6 @@ from sklearn.tree import DecisionTreeClassifier
 
 from data_loader import DataLoader
 from performance_evaluator import PerformanceEvaluator
-from pipeline_builder import PipelineBuilder
 
 warnings.filterwarnings("ignore")
 
@@ -53,59 +49,68 @@ data_path = "./data/test_cases.json"
 icd10_chapters_definition_path = "./data/icd10_chapters_definition.csv"
 
 performance_metric = accuracy_score
-cross_validation_params = {
-    "cv": 5,
-    "return_train_score": True,
-    "scoring": make_scorer(performance_metric),
-}
+cv = 5
 
-# pipeline parameter ranges:
 model_options = [
-    DummyClassifier(),  # strategy="prior"
-    # KNeighborsClassifier(),
-    # DecisionTreeClassifier(),
-    # LogisticRegression(),
-    LinearSVC(),
-    # SVC(),
-    # MLPClassifier(),
+    DummyClassifier(),  # baseline model (predicting the most frequent target)
+    KNeighborsClassifier(),
+    DecisionTreeClassifier(),
+    LogisticRegression(),
+    LinearSVC(),  # linear kernel
+    SVC(),  # rbf kernel
+    MLPClassifier(),
     LinearDiscriminantAnalysis(solver="lsqr"),
-    # RandomForestClassifier(),
-    # ExtraTreesClassifier(),
-    # PassiveAggressiveClassifier(),
-    # Perceptron(),
-    # GradientBoostingClassifier(),
+    RandomForestClassifier(),
+    ExtraTreesClassifier(),
+    PassiveAggressiveClassifier(),
+    Perceptron(),
+    GradientBoostingClassifier(),
 ]
 dim_reduction_algorithm_options = [
     None,
     PCA,
-    # TruncatedSVD,
-    # Isomap,
-    # LocallyLinearEmbedding,
+    TruncatedSVD,
+    Isomap,
+    LocallyLinearEmbedding,
 ]
-n_dimensions_options = [10, 50, 100, 200, None]
+n_dimensions_options = [10, 50, 100, 250, None]
 count_evidence_options = [False, True]
 include_absent_evidence_options = [False, True]
 n_most_frequent_options = [None]
 
-# classifiers' hyperparameters for tuning overfitting:
-# note: try to minimize overfitting for the best models/pipes:
+# hyperparameters for minimizing overfitting:
 hyperparameters = {
-    LogisticRegression: {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
-    LinearSVC: {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
-    PassiveAggressiveClassifier: {"C": [1.0, 0.5, 0.1, 0.01, 0.001, 0.0001]},
-    RandomForestClassifier: {"max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]},
-    ExtraTreesClassifier: {"max_leaf_nodes": [None, 200, 100, 50, 30, 20, 10, 5, 1]},
+    # KNeighborsClassifier: {"n_neighbors": [2, 5, 10, 20, 50]},
+    # LogisticRegression: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
+    # LinearSVC: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
+    # SVC: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
+    # PassiveAggressiveClassifier: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
+    # Perceptron: {
+    #     "penalty": ["l2"],
+    #     "alpha": [0.00001, 0.0001, 0.001, 0.01],
+    # },
     MLPClassifier: {
-        "alpha": [
-            0.0001,
-            0.005,
-            0.001,
-            0.005,
-            0.01,
-        ],
-        "hidden_layer_sizes": [(200,), (100,), (50,), (20,), (10,), (5,)],
+        "alpha": [0.00001, 0.0001],
+        "hidden_layer_sizes": [(5,), (50,)],
     },
-    LinearDiscriminantAnalysis: {"shrinkage": [None, 0.0, 0.3, 0.6, 1.0]},
+    # MLPClassifier: {
+    #     "alpha": [0.00001, 0.0001, 0.001, 0.01, 0.1],
+    #     "hidden_layer_sizes": [(5,), (50,), (200,), (500,)],
+    # },
+    # LinearDiscriminantAnalysis: {"shrinkage": [None, 0.0, 0.3, 0.6, 1.0]},
+    # DecisionTreeClassifier: {"max_depth": [1, 10, 50, 200, 500, None]},
+    # ExtraTreesClassifier: {
+    #     "max_depth": [1, 10, 50, 200, 500, None],
+    #     "n_estimators": [10, 100, 500, 1000],
+    # },
+    # RandomForestClassifier: {
+    #     "max_depth": [1, 10, 50, 200, 500, None],
+    #     "n_estimators": [10, 100, 500, 1000],
+    # },
+    # GradientBoostingClassifier: {
+    #     "max_depth": [1, 10, 50, 200, 500, None],
+    #     "n_estimators": [10, 100, 500, 1000],
+    # },
 }
 
 print("Load the data.")
@@ -120,30 +125,32 @@ print("y:", y)
 eval = PerformanceEvaluator(
     X=X,
     y=y,
+    performance_metric=performance_metric,
+    cv=cv,
+    results_directory=results_dir,
+)
+
+# %%
+print("Train and evaluate chosen pipelines.")
+eval.train_and_evaluate(
     model_options=model_options,
     dim_reduction_algorithm_options=dim_reduction_algorithm_options,
     n_dimensions_options=n_dimensions_options,
     count_evidence_options=count_evidence_options,
     include_absent_evidence_options=include_absent_evidence_options,
     n_most_frequent_options=n_most_frequent_options,
-    cross_validation_params=cross_validation_params,
-    results_directory=results_dir,
+    verbose=True,
 )
 
 # %%
-print("Train and evaluate chosen pipelines.")
-eval.train_and_evaluate(verbose=True)
-
-# %%
-print(
-    "For each model: Try to fix overfitting by varying hyperparameter(s) that reflect the model complexity."
-)
+print("Perform grid search.")
 eval.perform_gridsearch(hyperparameters=hyperparameters, with_plots=True, verbose=True)
 
-# %% make predictions with best performing pipeline:
+# %%
+print("Get the found best predictor.")
 eval.get_best_predictor()
 
-# %% plot performance for other paramaters of the pipeline:
+# %% Optional: plot performance for other paramaters of the pipeline:
 eval.plot_performance(model_class=LinearSVC, parameters=["n_dimensions"])
 
 # %%

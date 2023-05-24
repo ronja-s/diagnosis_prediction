@@ -12,10 +12,6 @@ from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder, StandardScaler
 from evidence_encoder import EvidenceEncoder
 
 
-class PipelineParameterCombinationError(Exception):
-    ...
-
-
 class PipelineBuilder:
     """Class for building a pipeline for predicting diagnoses."""
 
@@ -159,6 +155,6 @@ class PipelineBuilder:
 
     def __check_if_parameters_are_valid(self) -> None:
         if (self.dim_reduction_algorithm is None) and (self.n_dimensions is not None):
-            raise PipelineParameterCombinationError(
+            raise ValueError(
                 "If dim_reduction_algorithm is None, n_dimensions must be None."
             )

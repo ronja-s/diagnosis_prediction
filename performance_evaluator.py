@@ -1,17 +1,17 @@
-import ast
 import os
 import pickle
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn
 from sklearn.base import BaseEstimator
+from sklearn.metrics import make_scorer
 from sklearn.model_selection import GridSearchCV, cross_validate
 from sklearn.pipeline import Pipeline
 
-from pipeline_builder import PipelineBuilder, PipelineParameterCombinationError
+from pipeline_builder import PipelineBuilder
 
 
 class PerformanceEvaluator:
@@ -35,24 +35,14 @@ class PerformanceEvaluator:
         self,
         X: pd.DataFrame,
         y: pd.Series,
-        model_options: List[sklearn.base.BaseEstimator],
-        dim_reduction_algorithm_options: List[Optional[Type]],
-        n_dimensions_options: List[Optional[int]],
-        count_evidence_options: List[bool],
-        include_absent_evidence_options: List[bool],
-        n_most_frequent_options: List[Optional[int]],
-        cross_validation_params: dict,
+        performance_metric: Callable,
+        cv: int = 5,
         results_directory: str = ".",
     ) -> None:
         self.X = X
         self.y = y
-        self.model_options = model_options
-        self.dim_reduction_algorithm_options = dim_reduction_algorithm_options
-        self.n_dimensions_options = n_dimensions_options
-        self.count_evidence_options = count_evidence_options
-        self.include_absent_evidence_options = include_absent_evidence_options
-        self.n_most_frequent_options = n_most_frequent_options
-        self.cross_validation_params = cross_validation_params
+        self.performance_metric = performance_metric
+        self.cv = cv
         self.results_directory = results_directory
 
         self.train_and_evaluate_df = None
@@ -68,6 +58,12 @@ class PerformanceEvaluator:
 
     def train_and_evaluate(
         self,
+        model_options: List[sklearn.base.BaseEstimator],
+        dim_reduction_algorithm_options: List[Optional[Type]],
+        n_dimensions_options: List[Optional[int]],
+        count_evidence_options: List[bool],
+        include_absent_evidence_options: List[bool],
+        n_most_frequent_options: List[Optional[int]],
         verbose: bool = False,
     ) -> pd.DataFrame:
         """Train and evaluate all pipeline with the parameters given in the constructor.
@@ -75,14 +71,12 @@ class PerformanceEvaluator:
         """
         self.train_and_evaluate_df = pd.DataFrame()
 
-        for model in self.model_options:
-            for dim_reduction_algorithm in self.dim_reduction_algorithm_options:
-                for n_dimensions in self.n_dimensions_options:
-                    for count_evidence in self.count_evidence_options:
-                        for (
-                            include_absent_evidence
-                        ) in self.include_absent_evidence_options:
-                            for n_most_frequent in self.n_most_frequent_options:
+        for model in model_options:
+            for dim_reduction_algorithm in dim_reduction_algorithm_options:
+                for n_dimensions in n_dimensions_options:
+                    for count_evidence in count_evidence_options:
+                        for include_absent_evidence in include_absent_evidence_options:
+                            for n_most_frequent in n_most_frequent_options:
                                 try:
                                     if verbose:
                                         print(
@@ -101,12 +95,16 @@ class PerformanceEvaluator:
                                         estimator=pipe,
                                         X=self.X,
                                         y=self.y,
-                                        **self.cross_validation_params,
+                                        scoring=make_scorer(self.performance_metric),
+                                        cv=self.cv,
+                                        return_train_score=True,
                                     )
                                     test_accuracy = scores["test_score"].mean()
                                     train_accuracy = scores["train_score"].mean()
-                                except PipelineParameterCombinationError:
+                                except ValueError as ex:
                                     # ignore parameter combinations which are not valid
+                                    if verbose:
+                                        print(f"{type(ex).__name__}: {str(ex)}")
                                     continue
 
                                 if verbose:
@@ -129,9 +127,10 @@ class PerformanceEvaluator:
                                     },
                                     ignore_index=True,
                                 )
-        self._write_files(
-            df=self.train_and_evaluate_df, file_path=self.TRAIN_AND_EVALUATE_FILE_PATH
-        )
+            self._write_files(
+                df=self.train_and_evaluate_df,
+                file_path=self.TRAIN_AND_EVALUATE_FILE_PATH,
+            )
         self._set_best_parameters_df()
         return self.train_and_evaluate_df
 
@@ -141,6 +140,9 @@ class PerformanceEvaluator:
         with_plots: bool = True,
         verbose: bool = False,
     ) -> pd.DataFrame:
+        """Perform grid searchs to tune the given hyperparameters on the best found
+        pipelines.
+        """
         self.grid_search_df = pd.DataFrame()
         for model_class in hyperparameters.keys():
             model, best_pipeline = self._get_best_pipeline_for_model(
@@ -159,7 +161,9 @@ class PerformanceEvaluator:
             single_grid_search_df = self._perform_gridsearch_for_pipeline(
                 pipeline=best_pipeline, param_grid=param_grid
             )
-            single_grid_search_df[self._MODEL_COLUMN] = model
+            single_grid_search_df[self._MODEL_COLUMN] = [model] * len(
+                single_grid_search_df.index
+            )  # workaround because of RandomForestClassifier's __len__ method
             single_grid_search_df[self._MODEL_STR_COLUMN] = str(model)
             self.grid_search_df = self.grid_search_df.append(
                 single_grid_search_df, ignore_index=True
@@ -174,12 +178,18 @@ class PerformanceEvaluator:
                     model_class=model_class,
                     parameters=param_grid.keys(),
                 )
+            self._write_files(
+                df=self.grid_search_df, file_path=self.GRID_SEARCH_FILE_PATH
+            )
 
-        self._write_files(df=self.grid_search_df, file_path=self.GRID_SEARCH_FILE_PATH)
         self._set_best_parameters_df()
         return self.grid_search_df
 
     def plot_performance(self, model_class: Type, parameters: List[str]) -> None:
+        """Plot the performance metric evaluated on the train and test set for the given
+        model class against the given parameter(s). For each parameter, one figure is
+        created.
+        """
         for parameter in parameters:
             (
                 param_values,
@@ -189,30 +199,35 @@ class PerformanceEvaluator:
                 model_class=model_class, parameter=parameter
             )
 
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
-            ax.plot(
-                param_values,
-                train_accuracy_values,
-                marker="o",
-                label=self._TRAIN_SCORE_COLUMN,
-            )
-            ax.plot(
-                param_values,
-                test_accuracies_values,
-                marker="o",
-                label=self._TEST_SCORE_COLUMN,
-            )
-            ax.set_title(self.__get_class_name(model_class))
-            ax.set_xlabel(parameter)
-            ax.set_ylabel("accuracy")
-            ax.set_ylim([0.0, 1.0])
-            leg = ax.legend()
-            plot_file_path = self._get_file_path(
-                filename=self.__get_class_name(model_class) + "_" + parameter + ".jpg"
-            )
-            fig.savefig(plot_file_path, bbox_inches="tight", dpi=150)
-            plt.close(fig)
+            param_values = pd.to_numeric(param_values, errors="coerce")
+            if param_values.nunique() > 1:
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
+                ax.plot(
+                    param_values,
+                    train_accuracy_values,
+                    marker="o",
+                    label=self._TRAIN_SCORE_COLUMN,
+                )
+                ax.plot(
+                    param_values,
+                    test_accuracies_values,
+                    marker="o",
+                    label=self._TEST_SCORE_COLUMN,
+                )
+                ax.set_title(self.__get_class_name(model_class))
+                ax.set_xlabel(parameter)
+                ax.set_ylabel("accuracy")
+                ax.set_ylim([0.0, 1.0])
+                leg = ax.legend()
+                plot_file_path = self._get_file_path(
+                    filename=self.__get_class_name(model_class)
+                    + "_"
+                    + parameter
+                    + ".jpg"
+                )
+                fig.savefig(plot_file_path, bbox_inches="tight", dpi=150)
+                plt.close(fig)
 
     def get_best_predictor(self) -> BaseEstimator:
         self.best_parameters_df = self._load_dataframe(
@@ -263,8 +278,10 @@ class PerformanceEvaluator:
         grid_search_cv = GridSearchCV(
             estimator=pipeline,
             param_grid=param_grid,
+            scoring=make_scorer(self.performance_metric),
+            cv=self.cv,
             refit=True,
-            **self.cross_validation_params,
+            return_train_score=True,
         )
         grid_search_cv.fit(self.X, self.y)
         results_df = pd.DataFrame(grid_search_cv.cv_results_)[
