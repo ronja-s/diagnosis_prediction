@@ -1,0 +1,14 @@
+index,model,dim_reduction_algorithm,n_dimensions,count_evidence,include_absent_evidence,n_most_frequent,mean_train_score,mean_test_score,params
+288,LinearSVC(),PCA,250,False,False,,1.0,0.5733693693693693,{'model__C': 0.1}
+408,MLPClassifier(),,,False,False,,1.0,0.5574774774774774,"{'model__alpha': 0.01, 'model__hidden_layer_sizes': (200,)}"
+702,PassiveAggressiveClassifier(),PCA,,True,False,,1.0,0.5547747747747748,{'model__C': 0.01}
+544,RandomForestClassifier(),,,False,False,,1.0,0.5441441441441441,"{'model__max_depth': 200, 'model__n_estimators': 1000}"
+612,ExtraTreesClassifier(),,,False,False,,1.0,0.5358558558558559,"{'model__max_depth': None, 'model__n_estimators': 100}"
+240,LogisticRegression(),TruncatedSVD,250,False,False,,0.979221566294808,0.5358558558558558,{'model__C': 10.0}
+510,LinearDiscriminantAnalysis(solver='lsqr'),TruncatedSVD,100,True,False,,0.8451707032389846,0.5035675675675676,{'model__shrinkage': 0.3}
+818,GradientBoostingClassifier(),,,True,False,,1.0,0.48,"{'model__max_depth': 500, 'model__n_estimators': 100}"
+766,Perceptron(),PCA,250,True,False,,0.9993288590604028,0.47956756756756763,"{'model__alpha': 0.0001, 'model__penalty': 'l2'}"
+372,SVC(),TruncatedSVD,100,False,False,,0.7654036946420956,0.40190990990990993,{'model__C': 10.0}
+136,DecisionTreeClassifier(),,,False,False,,1.0,0.34821621621621623,{'model__max_depth': 200}
+70,KNeighborsClassifier(),,,True,False,,0.6099167246526453,0.3298018018018018,{'model__n_neighbors': 10}
+0,DummyClassifier(),,,False,False,,0.1608583421247559,0.16086486486486487,
