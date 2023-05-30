@@ -1,8 +1,10 @@
 import json
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
+
+from global_variables import INDEX_COLUMN, TARGET_COLUMN
 
 
 class DataLoader:
@@ -19,7 +21,7 @@ class DataLoader:
         """
         self.multi_label = multi_label
         self._data_df = None
-        self._TARGET_COLUMN = "expected_condition_icd10_blocks"
+        self._TARGET_COLUMN = TARGET_COLUMN
 
     def load(
         self,
@@ -63,7 +65,7 @@ class DataLoader:
         with open(data_path, encoding="utf8") as json_file:
             raw_data = json.load(json_file)
         self._data_df = pd.json_normalize(raw_data)
-        self._data_df.set_index("public_test_case_id", inplace=True)
+        self._data_df.set_index(INDEX_COLUMN, inplace=True)
 
     def _manipulate_raw_dataframe(self, icd10_chapters_definition_path: str) -> None:
         self.__check_if_dataframe_is_loaded
@@ -100,9 +102,9 @@ class DataLoader:
 
         # use age in months (consistent unit) as column:
         self._data_df["age_in_months"] = self._data_df.apply(
-            lambda row: row["age"] * 12 + 6
-            if row["age_unit"] == "year"
-            else row["age"],
+            lambda row: (
+                row["age"] * 12 + 6 if row["age_unit"] == "year" else row["age"]
+            ),
             axis=1,
         )
         self._data_df = self._data_df.drop(columns=["age", "age_unit"])

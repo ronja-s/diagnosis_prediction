@@ -89,15 +89,20 @@ class PipelineBuilder:
 
         return Pipeline(steps=steps)
 
-    def print_preprocessing_steps(self, X: pd.DataFrame) -> None:
+    def perform_preprocessing(
+        self, X: pd.DataFrame, verbose: bool = False
+    ) -> pd.DataFrame:
         pipe = self.get_pipe()
         X_transformed = X
         for name, transformer in pipe.steps[:-1]:
             if transformer is not None:
                 X_transformed = transformer.fit_transform(X_transformed)
-                print(
-                    f"X after step {name}: {X_transformed}\nShape: {X_transformed.shape}"
-                )
+                if verbose:
+                    print(
+                        f"X after step {name}: {X_transformed}\nShape:"
+                        f" {X_transformed.shape}"
+                    )
+        return X_transformed
 
     def _get_encoding_and_scaling_pipe(self) -> ColumnTransformer:
         transformer = ColumnTransformer(

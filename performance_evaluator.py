@@ -80,7 +80,12 @@ class PerformanceEvaluator:
                                 try:
                                     if verbose:
                                         print(
-                                            f"Evaluate for: model={model}, dim_reduction_algorithm={self.__get_class_name(dim_reduction_algorithm)}, n_dimensions={n_dimensions}, count_evidences={count_evidence}, include_absent_evidence={include_absent_evidence}, n_most_frequent={n_most_frequent}"
+                                            f"Evaluate for: model={model},"
+                                            f" dim_reduction_algorithm={self.__get_class_name(dim_reduction_algorithm)},"
+                                            f" n_dimensions={n_dimensions},"
+                                            f" count_evidences={count_evidence},"
+                                            f" include_absent_evidence={include_absent_evidence},"
+                                            f" n_most_frequent={n_most_frequent}"
                                         )
 
                                     pipe = PipelineBuilder(
@@ -99,8 +104,8 @@ class PerformanceEvaluator:
                                         cv=self.cv,
                                         return_train_score=True,
                                     )
-                                    test_accuracy = scores["test_score"].mean()
-                                    train_accuracy = scores["train_score"].mean()
+                                    test_score = scores["test_score"].mean()
+                                    train_score = scores["train_score"].mean()
                                 except ValueError as ex:
                                     # ignore parameter combinations which are not valid
                                     if verbose:
@@ -109,20 +114,27 @@ class PerformanceEvaluator:
 
                                 if verbose:
                                     print(
-                                        f"=> Test accuracy={test_accuracy}, train accuracy={train_accuracy}"
+                                        "=> Test"
+                                        f" score={test_score},"
+                                        " train"
+                                        f" score={train_score}"
                                     )
 
                                 self.train_and_evaluate_df = self.train_and_evaluate_df.append(
                                     {
                                         self._MODEL_COLUMN: model,
                                         self._MODEL_STR_COLUMN: str(model),
-                                        self._DIM_REDUCTION_ALGORITHM_COLUMN: dim_reduction_algorithm,
+                                        self._DIM_REDUCTION_ALGORITHM_COLUMN: (
+                                            dim_reduction_algorithm
+                                        ),
                                         self._N_DIMENSIONS_COLUMN: n_dimensions,
                                         self._COUNT_EVIDENCE_COLUMN: count_evidence,
-                                        self._INCLUDE_ABSENT_EVIDENCE_COLUMN: include_absent_evidence,
+                                        self._INCLUDE_ABSENT_EVIDENCE_COLUMN: (
+                                            include_absent_evidence
+                                        ),
                                         self._N_MOST_FREQUENT_COLUMN: n_most_frequent,
-                                        self._TRAIN_SCORE_COLUMN: train_accuracy,
-                                        self._TEST_SCORE_COLUMN: test_accuracy,
+                                        self._TRAIN_SCORE_COLUMN: train_score,
+                                        self._TEST_SCORE_COLUMN: test_score,
                                         self._PIPELINE_COLUMN: pipe,
                                     },
                                     ignore_index=True,
@@ -156,22 +168,29 @@ class PerformanceEvaluator:
                 print(f"Run grid search for {self.__get_class_name(model_class)}.")
             param_grid = dict(
                 ("model__" + key, value)
-                for (key, value) in hyperparameters[model_class].items()
+                for (
+                    key,
+                    value,
+                ) in hyperparameters[model_class].items()
             )
             single_grid_search_df = self._perform_gridsearch_for_pipeline(
-                pipeline=best_pipeline, param_grid=param_grid
+                pipeline=best_pipeline,
+                param_grid=param_grid,
             )
             single_grid_search_df[self._MODEL_COLUMN] = [model] * len(
                 single_grid_search_df.index
             )  # workaround because of RandomForestClassifier's __len__ method
             single_grid_search_df[self._MODEL_STR_COLUMN] = str(model)
             self.grid_search_df = self.grid_search_df.append(
-                single_grid_search_df, ignore_index=True
+                single_grid_search_df,
+                ignore_index=True,
             )
 
             if verbose:
                 print(
-                    f"Create plot for grid search of {self.__get_class_name(model_class)}."
+                    "Create plot for grid"
+                    " search of"
+                    f" {self.__get_class_name(model_class)}."
                 )
             if with_plots:
                 self.plot_performance(
@@ -179,13 +198,18 @@ class PerformanceEvaluator:
                     parameters=param_grid.keys(),
                 )
             self._write_files(
-                df=self.grid_search_df, file_path=self.GRID_SEARCH_FILE_PATH
+                df=self.grid_search_df,
+                file_path=self.GRID_SEARCH_FILE_PATH,
             )
 
         self._set_best_parameters_df()
         return self.grid_search_df
 
-    def plot_performance(self, model_class: Type, parameters: List[str]) -> None:
+    def plot_performance(
+        self,
+        model_class: Type,
+        parameters: List[str],
+    ) -> None:
         """Plot the performance metric evaluated on the train and test set for the given
         model class against the given parameter(s). For each parameter, one figure is
         created.
@@ -193,31 +217,38 @@ class PerformanceEvaluator:
         for parameter in parameters:
             (
                 param_values,
-                train_accuracy_values,
-                test_accuracies_values,
+                train_score_values,
+                train_score_error_values,
+                test_score_values,
+                test_score_error_values,
             ) = self.__get_performance_for_parameter(
-                model_class=model_class, parameter=parameter
+                model_class=model_class,
+                parameter=parameter,
             )
 
             param_values = pd.to_numeric(param_values, errors="coerce")
             if param_values.nunique() > 1:
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
-                ax.plot(
-                    param_values,
-                    train_accuracy_values,
+                ax.errorbar(
+                    x=param_values,
+                    y=train_score_values,
+                    yerr=train_score_error_values,
+                    capsize=3.0,
                     marker="o",
                     label=self._TRAIN_SCORE_COLUMN,
                 )
-                ax.plot(
-                    param_values,
-                    test_accuracies_values,
+                ax.errorbar(
+                    x=param_values,
+                    y=test_score_values,
+                    yerr=test_score_error_values,
+                    capsize=3.0,
                     marker="o",
                     label=self._TEST_SCORE_COLUMN,
                 )
                 ax.set_title(self.__get_class_name(model_class))
                 ax.set_xlabel(parameter)
-                ax.set_ylabel("accuracy")
+                ax.set_ylabel(self.performance_metric.__name__)
                 ax.set_ylim([0.0, 1.0])
                 leg = ax.legend()
                 plot_file_path = self._get_file_path(
@@ -226,19 +257,25 @@ class PerformanceEvaluator:
                     + parameter
                     + ".jpg"
                 )
-                fig.savefig(plot_file_path, bbox_inches="tight", dpi=150)
+                fig.savefig(
+                    plot_file_path,
+                    bbox_inches="tight",
+                    dpi=150,
+                )
                 plt.close(fig)
 
     def get_best_predictor(self) -> BaseEstimator:
         self.best_parameters_df = self._load_dataframe(
-            df=self.best_parameters_df, file_path=self.BEST_PARAMETERS_FILE_PATH
+            df=self.best_parameters_df,
+            file_path=self.BEST_PARAMETERS_FILE_PATH,
         )
         best_pipeline = self.best_parameters_df.loc[
             self.best_parameters_df[self._TEST_SCORE_COLUMN].idxmax()
         ][self._PIPELINE_COLUMN]
         best_predictor = best_pipeline.fit(self.X, self.y)
         self.__write_pickle(
-            data=best_predictor, file_path=self.BEST_PREDICTOR_FILE_PATH + ".pkl"
+            data=best_predictor,
+            file_path=self.BEST_PREDICTOR_FILE_PATH + ".pkl",
         )
         return best_predictor
 
@@ -260,7 +297,8 @@ class PerformanceEvaluator:
 
     def _set_best_parameters_df(self) -> None:
         self.train_and_evaluate_df = self._load_dataframe(
-            df=self.train_and_evaluate_df, file_path=self.TRAIN_AND_EVALUATE_FILE_PATH
+            df=self.train_and_evaluate_df,
+            file_path=self.TRAIN_AND_EVALUATE_FILE_PATH,
         )
         self.best_parameters_df = self.__get_best_performing_entries(
             df=self.train_and_evaluate_df,
@@ -269,7 +307,8 @@ class PerformanceEvaluator:
         )
         self.__append_gridsearch_results_to_best_parameters()
         self._write_files(
-            df=self.best_parameters_df, file_path=self.BEST_PARAMETERS_FILE_PATH
+            df=self.best_parameters_df,
+            file_path=self.BEST_PARAMETERS_FILE_PATH,
         )
 
     def _perform_gridsearch_for_pipeline(
@@ -298,7 +337,8 @@ class PerformanceEvaluator:
         self, model_class: Type
     ) -> Optional[Tuple[BaseEstimator, Pipeline]]:
         self.best_parameters_df = self._load_dataframe(
-            df=self.best_parameters_df, file_path=self.BEST_PARAMETERS_FILE_PATH
+            df=self.best_parameters_df,
+            file_path=self.BEST_PARAMETERS_FILE_PATH,
         )
         model_df = (
             self.best_parameters_df[
@@ -327,7 +367,8 @@ class PerformanceEvaluator:
         self, model_class: Type, parameter: str
     ) -> Tuple[List]:
         self.train_and_evaluate_df = self._load_dataframe(
-            df=self.train_and_evaluate_df, file_path=self.TRAIN_AND_EVALUATE_FILE_PATH
+            df=self.train_and_evaluate_df,
+            file_path=self.TRAIN_AND_EVALUATE_FILE_PATH,
         )
         if parameter in self.train_and_evaluate_df.columns:
             model_df = self.train_and_evaluate_df[
@@ -337,7 +378,8 @@ class PerformanceEvaluator:
             ]
         else:
             self.grid_search_df = self._load_dataframe(
-                df=self.grid_search_df, file_path=self.GRID_SEARCH_FILE_PATH
+                df=self.grid_search_df,
+                file_path=self.GRID_SEARCH_FILE_PATH,
             )
             model_df = self.grid_search_df[
                 self.grid_search_df[self._MODEL_COLUMN].map(
@@ -346,18 +388,56 @@ class PerformanceEvaluator:
             ]
             # explode param dictionary column into multiple columns:
             model_df = pd.concat(
-                [model_df, model_df[self._PARAMS_COLUMN].apply(pd.Series)], axis=1
+                [
+                    model_df,
+                    model_df[self._PARAMS_COLUMN].apply(pd.Series),
+                ],
+                axis=1,
             )
+        (
+            param_values,
+            train_score_values,
+            train_score_error_values,
+        ) = self.__get_mean_and_std(
+            df=model_df,
+            x_column=parameter,
+            y_column=self._TRAIN_SCORE_COLUMN,
+        )
+        (
+            _,
+            test_score_values,
+            test_score_error_values,
+        ) = self.__get_mean_and_std(
+            df=model_df,
+            x_column=parameter,
+            y_column=self._TEST_SCORE_COLUMN,
+        )
         return (
-            model_df[parameter],
-            model_df[self._TRAIN_SCORE_COLUMN],
-            model_df[self._TEST_SCORE_COLUMN],
+            param_values,
+            train_score_values,
+            train_score_error_values,
+            test_score_values,
+            test_score_error_values,
         )
 
-    def __append_gridsearch_results_to_best_parameters(self) -> None:
+    @staticmethod
+    def __get_mean_and_std(df, x_column, y_column):
+        statistics_df = (
+            df.groupby(by=x_column)[y_column].agg(["mean", "std"]).reset_index()
+        )
+        return (
+            statistics_df[x_column],
+            statistics_df["mean"],
+            statistics_df["std"].fillna(0.0),
+        )
+
+    def __append_gridsearch_results_to_best_parameters(
+        self,
+    ) -> None:
         try:
             self.grid_search_df = self._load_dataframe(
-                df=self.grid_search_df, file_path=self.GRID_SEARCH_FILE_PATH
+                df=self.grid_search_df,
+                file_path=self.GRID_SEARCH_FILE_PATH,
             )
         except FileNotFoundError:
             return
@@ -385,7 +465,8 @@ class PerformanceEvaluator:
                 overwrite=True,
             )
             self.best_parameters_df = self.best_parameters_df.sort_values(
-                self._TEST_SCORE_COLUMN, ascending=False
+                self._TEST_SCORE_COLUMN,
+                ascending=False,
             )
 
     @staticmethod
@@ -397,14 +478,21 @@ class PerformanceEvaluator:
         best_indices = df.groupby(groupby_column)[performance_column].idxmax().values
         best_entries_df = (
             df.iloc[best_indices]
-            .sort_values(performance_column, ascending=False)
+            .sort_values(
+                performance_column,
+                ascending=False,
+            )
             .reset_index()
         )
         return best_entries_df
 
     def __write_csv(self, df: pd.DataFrame, file_path: str) -> None:
         str_df = df.copy().drop(
-            columns=[self._MODEL_STR_COLUMN, self._PIPELINE_COLUMN], errors="ignore"
+            columns=[
+                self._MODEL_STR_COLUMN,
+                self._PIPELINE_COLUMN,
+            ],
+            errors="ignore",
         )
         if self._DIM_REDUCTION_ALGORITHM_COLUMN in str_df.columns:
             str_df[self._DIM_REDUCTION_ALGORITHM_COLUMN] = str_df[
@@ -418,7 +506,9 @@ class PerformanceEvaluator:
             pickle.dump(obj=data, file=f)
 
     @staticmethod
-    def __get_class_name(cls: Type) -> Optional[str]:
+    def __get_class_name(
+        cls: Type,
+    ) -> Optional[str]:
         if cls is None:
             return None
         else:

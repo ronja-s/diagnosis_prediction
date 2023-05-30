@@ -1,9 +1,6 @@
 # %%
 import os
-import random
-import warnings
 
-import numpy as np
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.dummy import DummyClassifier
@@ -25,28 +22,19 @@ from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 
 from data_loader import DataLoader
+from global_variables import (
+    DATA_PATH,
+    ICD10_CHAPTERS_DEFINITION_PATH,
+    RESULTS_DIR,
+    SEED,
+)
+from helper_functions import set_seed
 from performance_evaluator import PerformanceEvaluator
 
-warnings.filterwarnings("ignore")
+set_seed(SEED)
 
-
-# set random number generator seed for reproducibilty
-def set_seed(seed: int):
-    random.seed(seed)
-    np.random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    os.environ["TF_DETERMINISTIC_OPS"] = "1"
-
-
-set_seed(31415)
-
-# global variables:
-results_dir = "./results/"
-if not os.path.exists(results_dir):
-    os.makedirs(results_dir)
-
-data_path = "./data/test_cases.json"
-icd10_chapters_definition_path = "./data/icd10_chapters_definition.csv"
+if not os.path.exists(RESULTS_DIR):
+    os.makedirs(RESULTS_DIR)
 
 performance_metric = accuracy_score
 cv = 5
@@ -78,45 +66,40 @@ count_evidence_options = [False, True]
 include_absent_evidence_options = [False, True]
 n_most_frequent_options = [None]
 
-# hyperparameters for minimizing overfitting:
 hyperparameters = {
-    # KNeighborsClassifier: {"n_neighbors": [2, 5, 10, 20, 50]},
-    # LogisticRegression: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
-    # LinearSVC: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
-    # SVC: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
-    # PassiveAggressiveClassifier: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
-    # Perceptron: {
-    #     "penalty": ["l2"],
-    #     "alpha": [0.00001, 0.0001, 0.001, 0.01],
-    # },
-    MLPClassifier: {
-        "alpha": [0.00001, 0.0001],
-        "hidden_layer_sizes": [(5,), (50,)],
+    KNeighborsClassifier: {"n_neighbors": [2, 5, 10, 20, 50]},
+    LogisticRegression: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
+    LinearSVC: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
+    SVC: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
+    PassiveAggressiveClassifier: {"C": [0.001, 0.01, 0.1, 1.0, 10.0]},
+    Perceptron: {
+        "penalty": ["l2"],
+        "alpha": [0.00001, 0.0001, 0.001, 0.01],
     },
-    # MLPClassifier: {
-    #     "alpha": [0.00001, 0.0001, 0.001, 0.01, 0.1],
-    #     "hidden_layer_sizes": [(5,), (50,), (200,), (500,)],
-    # },
-    # LinearDiscriminantAnalysis: {"shrinkage": [None, 0.0, 0.3, 0.6, 1.0]},
-    # DecisionTreeClassifier: {"max_depth": [1, 10, 50, 200, 500, None]},
-    # ExtraTreesClassifier: {
-    #     "max_depth": [1, 10, 50, 200, 500, None],
-    #     "n_estimators": [10, 100, 500, 1000],
-    # },
-    # RandomForestClassifier: {
-    #     "max_depth": [1, 10, 50, 200, 500, None],
-    #     "n_estimators": [10, 100, 500, 1000],
-    # },
-    # GradientBoostingClassifier: {
-    #     "max_depth": [1, 10, 50, 200, 500, None],
-    #     "n_estimators": [10, 100, 500, 1000],
-    # },
+    MLPClassifier: {
+        "alpha": [0.00001, 0.0001, 0.001, 0.01, 0.1],
+        "hidden_layer_sizes": [(5,), (50,), (200,), (500,)],
+    },
+    LinearDiscriminantAnalysis: {"shrinkage": [None, 0.0, 0.3, 0.6, 1.0]},
+    DecisionTreeClassifier: {"max_depth": [1, 10, 50, 200, 500, None]},
+    ExtraTreesClassifier: {
+        "max_depth": [1, 10, 50, 200, 500, None],
+        "n_estimators": [10, 100, 500, 1000],
+    },
+    RandomForestClassifier: {
+        "max_depth": [1, 10, 50, 200, 500, None],
+        "n_estimators": [10, 100, 500, 1000],
+    },
+    GradientBoostingClassifier: {
+        "max_depth": [1, 10, 50, 200, 500, None],
+        "n_estimators": [10, 100, 500, 1000],
+    },
 }
 
 print("Load the data.")
 X, y = DataLoader(multi_label=False).load(
-    data_path=data_path,
-    icd10_chapters_definition_path=icd10_chapters_definition_path,
+    data_path=DATA_PATH,
+    icd10_chapters_definition_path=ICD10_CHAPTERS_DEFINITION_PATH,
     test_size=None,
 )
 print("X:", X)
@@ -127,7 +110,7 @@ eval = PerformanceEvaluator(
     y=y,
     performance_metric=performance_metric,
     cv=cv,
-    results_directory=results_dir,
+    results_directory=RESULTS_DIR,
 )
 
 # %%
