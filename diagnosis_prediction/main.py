@@ -107,7 +107,7 @@ X, y = DataLoader(multi_label=False).load(
 print("X:", X)
 print("y:", y)
 
-eval = PerformanceEvaluator(
+performance_evaluator = PerformanceEvaluator(
     X=X,
     y=y,
     performance_metric=performance_metric,
@@ -117,7 +117,7 @@ eval = PerformanceEvaluator(
 
 # %%
 print("Train and evaluate chosen pipelines.")
-eval.train_and_evaluate(
+performance_evaluator.train_and_evaluate(
     model_options=model_options,
     dim_reduction_algorithm_options=dim_reduction_algorithm_options,
     n_dimensions_options=n_dimensions_options,
@@ -129,13 +129,17 @@ eval.train_and_evaluate(
 
 # %%
 print("Perform grid search.")
-eval.perform_gridsearch(hyperparameters=hyperparameters, with_plots=True, verbose=True)
+performance_evaluator.perform_gridsearch(
+    hyperparameters=hyperparameters, with_plots=True, verbose=True
+)
 
 # %%
 print("Get the found best predictor.")
-eval.get_best_predictor()
+performance_evaluator.get_best_predictor()
 
 # %% Optional: plot performance for other paramaters of the pipeline:
-eval.plot_performance(model_class=LinearSVC, parameters=["n_dimensions"])
+performance_evaluator.plot_performance(
+    model_class=LinearSVC, parameters=["n_dimensions"]
+)
 
 # %%

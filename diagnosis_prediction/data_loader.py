@@ -130,9 +130,7 @@ class DataLoader:
         )
         self._data_df[self._TARGET_COLUMN] = self._data_df[
             "expected_condition_icd10_codes"
-        ].map(
-            lambda code_list: grouping.map_multiple_icd10_codes_to_chapters(code_list)
-        )
+        ].map(grouping.map_multiple_icd10_codes_to_chapters)
         self._data_df = self._data_df.drop(columns=["expected_condition_icd10_codes"])
         if not self.multi_label:
             self._data_df[self._TARGET_COLUMN] = self._data_df[

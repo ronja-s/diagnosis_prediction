@@ -17,8 +17,12 @@ def set_seed(seed: int) -> None:
 def check_dependence_of_columns(
     df: pd.DataFrame, col_to_compare: str, possibly_derived_cols: List[str]
 ) -> None:
+    """Check whether the columns possibly_derived_cols can be derived from the column
+    col_to_compare."""
     for col in possibly_derived_cols:
-        is_unique = df.groupby(col_to_compare).apply(lambda df: df[col].nunique() <= 1)
+        is_unique = df.groupby(col_to_compare).apply(
+            lambda df, column=col: df[column].nunique() <= 1
+        )
         if not is_unique.all():
             print(f"Column {col} cannot be derived from {col_to_compare}!")
         else:

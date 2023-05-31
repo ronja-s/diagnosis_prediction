@@ -104,8 +104,8 @@ print(
 #   may be necessary for an unseen test data set)
 
 # %% analyze evidence encoded data:
-ee = EvidenceEncoder()
-encoded_data_df = ee.fit_transform(transformed_data_df)
+evidence_encoder = EvidenceEncoder()
+encoded_data_df = evidence_encoder.fit_transform(transformed_data_df)
 profile_encoded_data = ydata_profiling.ProfileReport(
     encoded_data_df,
     minimal=True,

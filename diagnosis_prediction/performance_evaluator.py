@@ -253,7 +253,7 @@ class PerformanceEvaluator:
                 ax.set_xlabel(parameter)
                 ax.set_ylabel(self.performance_metric.__name__)
                 ax.set_ylim([0.0, 1.0])
-                leg = ax.legend()
+                ax.legend()
                 plot_file_path = self._get_file_path(
                     filename=self.__get_class_name(model_class)
                     + "_"
@@ -346,7 +346,7 @@ class PerformanceEvaluator:
         model_df = (
             self.best_parameters_df[
                 self.best_parameters_df[self._MODEL_COLUMN].map(
-                    lambda model: type(model) == model_class
+                    lambda model: isinstance(model, model_class)
                 )
             ]
             .squeeze(axis=0)
@@ -376,7 +376,7 @@ class PerformanceEvaluator:
         if parameter in self.train_and_evaluate_df.columns:
             model_df = self.train_and_evaluate_df[
                 self.train_and_evaluate_df[self._MODEL_COLUMN].map(
-                    lambda model: type(model) == model_class
+                    lambda model: isinstance(model, model_class)
                 )
             ]
         else:
@@ -386,7 +386,7 @@ class PerformanceEvaluator:
             )
             model_df = self.grid_search_df[
                 self.grid_search_df[self._MODEL_COLUMN].map(
-                    lambda model: type(model) == model_class
+                    lambda model: isinstance(model, model_class)
                 )
             ]
             # explode param dictionary column into multiple columns:
@@ -505,14 +505,13 @@ class PerformanceEvaluator:
 
     @staticmethod
     def __write_pickle(data: Any, file_path: str) -> None:
-        with open(file_path, "wb") as f:
-            pickle.dump(obj=data, file=f)
+        with open(file_path, "wb") as file:
+            pickle.dump(obj=data, file=file)
 
     @staticmethod
     def __get_class_name(
-        cls: Type,
+        class_: Type,
     ) -> Optional[str]:
-        if cls is None:
+        if class_ is None:
             return None
-        else:
-            return cls.__name__
+        return class_.__name__
