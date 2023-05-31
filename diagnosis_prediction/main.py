@@ -1,6 +1,16 @@
 # %%
 import os
+import warnings
 
+from data_loader import DataLoader
+from global_variables import (
+    ICD10_CHAPTERS_DEFINITION_PATH,
+    RESULTS_DIR,
+    SEED,
+    TEST_CASES_PATH,
+)
+from helper_functions import set_seed
+from performance_evaluator import PerformanceEvaluator
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.dummy import DummyClassifier
@@ -21,23 +31,15 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 
-from data_loader import DataLoader
-from global_variables import (
-    DATA_PATH,
-    ICD10_CHAPTERS_DEFINITION_PATH,
-    RESULTS_DIR,
-    SEED,
-)
-from helper_functions import set_seed
-from performance_evaluator import PerformanceEvaluator
-
 set_seed(SEED)
+
+warnings.filterwarnings("ignore")  # to reduce noise during training
 
 if not os.path.exists(RESULTS_DIR):
     os.makedirs(RESULTS_DIR)
 
 performance_metric = accuracy_score
-cv = 5
+cross_validation_splitting = 5
 
 model_options = [
     DummyClassifier(),  # baseline model (predicting the most frequent target)
@@ -98,7 +100,7 @@ hyperparameters = {
 
 print("Load the data.")
 X, y = DataLoader(multi_label=False).load(
-    data_path=DATA_PATH,
+    data_path=TEST_CASES_PATH,
     icd10_chapters_definition_path=ICD10_CHAPTERS_DEFINITION_PATH,
     test_size=None,
 )
@@ -109,7 +111,7 @@ eval = PerformanceEvaluator(
     X=X,
     y=y,
     performance_metric=performance_metric,
-    cv=cv,
+    cross_validation_splitting=cross_validation_splitting,
     results_directory=RESULTS_DIR,
 )
 

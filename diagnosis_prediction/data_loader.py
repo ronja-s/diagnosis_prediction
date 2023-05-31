@@ -2,9 +2,8 @@ import json
 from typing import List, Optional, Tuple
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
-
 from global_variables import INDEX_COLUMN, TARGET_COLUMN
+from sklearn.model_selection import train_test_split
 
 
 class DataLoader:
@@ -77,7 +76,7 @@ class DataLoader:
         )
 
     def __drop_undesirable_columns(self) -> None:
-        COLUMS_TO_DROP = [
+        COLUMNS_TO_DROP = [
             "public_test_case_name",
             "public_test_case_source",
             "expected_condition_name",
@@ -87,7 +86,7 @@ class DataLoader:
             "test_case_passed",
             "predicted_conditions",
         ]
-        self._data_df = self._data_df.drop(columns=COLUMS_TO_DROP)
+        self._data_df = self._data_df.drop(columns=COLUMNS_TO_DROP)
 
     def __prepare_age_and_sex_columns(self) -> None:
         # rename serialized api_payload columns:

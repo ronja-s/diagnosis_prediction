@@ -3,13 +3,12 @@ from typing import Dict, List, Optional, Type
 
 import pandas as pd
 import sklearn
+from evidence_encoder import EvidenceEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder, StandardScaler
-
-from evidence_encoder import EvidenceEncoder
 
 
 class PipelineBuilder:

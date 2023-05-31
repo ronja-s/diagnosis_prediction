@@ -6,12 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn
+from pipeline_builder import PipelineBuilder
 from sklearn.base import BaseEstimator
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import GridSearchCV, cross_validate
 from sklearn.pipeline import Pipeline
-
-from pipeline_builder import PipelineBuilder
 
 
 class PerformanceEvaluator:
@@ -36,13 +35,13 @@ class PerformanceEvaluator:
         X: pd.DataFrame,
         y: pd.Series,
         performance_metric: Callable,
-        cv: int = 5,
+        cross_validation_splitting: int = 5,
         results_directory: str = ".",
     ) -> None:
         self.X = X
         self.y = y
         self.performance_metric = performance_metric
-        self.cv = cv
+        self.cross_validation_splitting = cross_validation_splitting
         self.results_directory = results_directory
 
         self.train_and_evaluate_df = None
@@ -101,7 +100,7 @@ class PerformanceEvaluator:
                                         X=self.X,
                                         y=self.y,
                                         scoring=make_scorer(self.performance_metric),
-                                        cv=self.cv,
+                                        cv=self.cross_validation_splitting,
                                         return_train_score=True,
                                     )
                                     test_score = scores["test_score"].mean()
@@ -120,23 +119,27 @@ class PerformanceEvaluator:
                                         f" score={train_score}"
                                     )
 
-                                self.train_and_evaluate_df = self.train_and_evaluate_df.append(
+                                new_row = pd.DataFrame(
                                     {
-                                        self._MODEL_COLUMN: model,
-                                        self._MODEL_STR_COLUMN: str(model),
-                                        self._DIM_REDUCTION_ALGORITHM_COLUMN: (
+                                        self._MODEL_COLUMN: [model],
+                                        self._MODEL_STR_COLUMN: [str(model)],
+                                        self._DIM_REDUCTION_ALGORITHM_COLUMN: [
                                             dim_reduction_algorithm
-                                        ),
-                                        self._N_DIMENSIONS_COLUMN: n_dimensions,
-                                        self._COUNT_EVIDENCE_COLUMN: count_evidence,
-                                        self._INCLUDE_ABSENT_EVIDENCE_COLUMN: (
+                                        ],
+                                        self._N_DIMENSIONS_COLUMN: [n_dimensions],
+                                        self._COUNT_EVIDENCE_COLUMN: [count_evidence],
+                                        self._INCLUDE_ABSENT_EVIDENCE_COLUMN: [
                                             include_absent_evidence
-                                        ),
-                                        self._N_MOST_FREQUENT_COLUMN: n_most_frequent,
-                                        self._TRAIN_SCORE_COLUMN: train_score,
-                                        self._TEST_SCORE_COLUMN: test_score,
-                                        self._PIPELINE_COLUMN: pipe,
-                                    },
+                                        ],
+                                        self._N_MOST_FREQUENT_COLUMN: [n_most_frequent],
+                                        self._TRAIN_SCORE_COLUMN: [train_score],
+                                        self._TEST_SCORE_COLUMN: [test_score],
+                                        self._PIPELINE_COLUMN: [pipe],
+                                    }
+                                )
+                                self.train_and_evaluate_df = pd.concat(
+                                    [self.train_and_evaluate_df, new_row],
+                                    axis=0,
                                     ignore_index=True,
                                 )
             self._write_files(
@@ -181,8 +184,8 @@ class PerformanceEvaluator:
                 single_grid_search_df.index
             )  # workaround because of RandomForestClassifier's __len__ method
             single_grid_search_df[self._MODEL_STR_COLUMN] = str(model)
-            self.grid_search_df = self.grid_search_df.append(
-                single_grid_search_df,
+            self.grid_search_df = pd.concat(
+                [self.grid_search_df, single_grid_search_df],
                 ignore_index=True,
             )
 
@@ -318,7 +321,7 @@ class PerformanceEvaluator:
             estimator=pipeline,
             param_grid=param_grid,
             scoring=make_scorer(self.performance_metric),
-            cv=self.cv,
+            cv=self.cross_validation_splitting,
             refit=True,
             return_train_score=True,
         )
