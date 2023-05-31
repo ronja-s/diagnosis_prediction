@@ -1,0 +1,35 @@
+[project]
+name = "diagnosis_prediction"
+description = "Machine learning test project for predicting diagnoses based on symptoms and risk factors"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Ronja"}
+]
+
+dependencies = [
+    "matplotlib",
+    "pandas",
+    "scikit_learn",
+    "ydata_profiling",
+]
+
+[tool.black]
+line-length = 88
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.tox
+  | venv
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black" 
