@@ -26,6 +26,7 @@ from sklearn.linear_model import (
 )
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import LearningCurveDisplay
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
@@ -135,11 +136,27 @@ performance_evaluator.perform_gridsearch(
 
 # %%
 print("Get the found best predictor.")
-performance_evaluator.get_best_predictor()
+best_predictor = performance_evaluator.get_best_predictor()
+best_predictor
+
+# %% display learning curve of best predictor:
+LearningCurveDisplay.from_estimator(
+    best_predictor,
+    X=X,
+    y=y,
+    train_sizes=[
+        0.85,  # cannot start lower because of number of components of PCA
+        0.9,
+        0.95,
+        1.0,
+    ],
+    cv=5,
+    score_type="both",
+    error_score="raise",
+)
 
 # %% Optional: plot performance for other paramaters of the pipeline:
 performance_evaluator.plot_performance(
-    model_class=LinearSVC, parameters=["n_dimensions"]
+    model_class=LinearSVC,
+    parameters=["n_dimensions"],
 )
-
-# %%

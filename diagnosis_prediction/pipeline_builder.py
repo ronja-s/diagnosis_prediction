@@ -56,7 +56,7 @@ class PipelineBuilder:
         self.__check_if_parameters_are_valid()
 
         self._CATEGORICAL_COLUMNS_EVIDENCE = ["evidence_present", "evidence_absent"]
-        self._CATEGORICAL_COLUMS_OTHER = ["sex"]
+        self._CATEGORICAL_COLUMNS_OTHER = ["sex"]
         self._NUMERICAL_COLUMNS = ["age_in_months"]
         self.__PRESENT_EVIDENCE_COUNT = "present_evidence_count"
         self.__ABSENT_EVIDENCE_COUNT = "absent_evidence_count"
@@ -109,7 +109,7 @@ class PipelineBuilder:
                     OrdinalEncoder(
                         handle_unknown="use_encoded_value", unknown_value=-1
                     ),
-                    self._CATEGORICAL_COLUMS_OTHER,
+                    self._CATEGORICAL_COLUMNS_OTHER,
                 ),
                 ("age_scaler", StandardScaler(), self._NUMERICAL_COLUMNS),
                 (

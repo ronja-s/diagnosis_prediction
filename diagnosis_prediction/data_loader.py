@@ -89,7 +89,6 @@ class DataLoader:
         self._data_df = self._data_df.drop(columns=COLUMNS_TO_DROP)
 
     def __prepare_age_and_sex_columns(self) -> None:
-        # rename serialized api_payload columns:
         self._data_df.rename(
             columns={
                 "api_payload.sex": "sex",
@@ -102,11 +101,19 @@ class DataLoader:
         # use age in months (consistent unit) as column:
         self._data_df["age_in_months"] = self._data_df.apply(
             lambda row: (
-                row["age"] * 12 + 6 if row["age_unit"] == "year" else row["age"]
+                self.__convert_years_to_months(years=row["age"])
+                if row["age_unit"] == "year"
+                else row["age"]
             ),
             axis=1,
         )
         self._data_df = self._data_df.drop(columns=["age", "age_unit"])
+
+    @staticmethod
+    def __convert_years_to_months(years: int) -> int:
+        # note: add 6 months to account for lack of precision
+        months = (years * 12) + 6
+        return months
 
     def __extract_evidence(self) -> None:
         self._data_df["evidence_present"] = self._data_df["evidence.present"].map(
