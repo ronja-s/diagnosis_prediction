@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
 # %%
 import os
+import random
 import warnings
 
+import numpy as np
 from data_loader import DataLoader
 from global_variables import (
     ICD10_CHAPTERS_DEFINITION_PATH,
@@ -9,7 +12,6 @@ from global_variables import (
     SEED,
     TEST_CASES_PATH,
 )
-from helper_functions import set_seed
 from performance_evaluator import PerformanceEvaluator
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
@@ -31,6 +33,15 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
+
+
+def set_seed(seed: int) -> None:
+    """Set random number generator seed for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["TF_DETERMINISTIC_OPS"] = "1"
+
 
 set_seed(SEED)
 
@@ -67,7 +78,6 @@ dim_reduction_algorithm_options = [
 n_dimensions_options = [10, 50, 100, 250, None]
 count_evidence_options = [False, True]
 include_absent_evidence_options = [False, True]
-n_most_frequent_options = [None]
 
 hyperparameters = {
     KNeighborsClassifier: {"n_neighbors": [2, 5, 10, 20, 50]},
@@ -124,7 +134,6 @@ performance_evaluator.train_and_evaluate(
     n_dimensions_options=n_dimensions_options,
     count_evidence_options=count_evidence_options,
     include_absent_evidence_options=include_absent_evidence_options,
-    n_most_frequent_options=n_most_frequent_options,
     verbose=True,
 )
 

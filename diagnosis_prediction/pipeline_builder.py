@@ -18,7 +18,6 @@ class PipelineBuilder:
         n_dimensions: Optional[int] = None,
         count_evidence: bool = False,
         include_absent_evidence: bool = True,
-        n_most_frequent: Optional[int] = None,
     ) -> None:
         """Args:
         model (sklearn.base.BaseEstimator): Classifier used for the prediction.
@@ -40,9 +39,6 @@ class PipelineBuilder:
         include_absent_evidence (bool): If True, absent evidence are also used as
         features. Otherwise, only present evidence are used. Defaults to True.
 
-        n_most_frequent (Optional[int]): If not None, only use the given number of most
-        frequent evidence as festures. Defaults to None.
-
         Raises:
             PipelineParameterCombinationError: If non-valid parameter combinations are
             used.
@@ -52,7 +48,6 @@ class PipelineBuilder:
         self.n_dimensions = n_dimensions
         self.count_evidence = count_evidence
         self.include_absent_evidence = include_absent_evidence
-        self.n_most_frequent = n_most_frequent
         self.__check_if_parameters_are_valid()
 
         self._CATEGORICAL_COLUMNS_EVIDENCE = ["evidence_present", "evidence_absent"]
@@ -130,7 +125,6 @@ class PipelineBuilder:
                 EvidenceEncoder(
                     handle_unknown="ignore",
                     count_evidence=self.count_evidence,
-                    n_most_frequent=self.n_most_frequent,
                     include_absent_evidence=self.include_absent_evidence,
                 ),
             )

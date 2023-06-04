@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
 # %%
 import json
 import os
+from typing import List
 
 import pandas as pd
 import ydata_profiling
@@ -12,13 +14,28 @@ from global_variables import (
     TARGET_COLUMN,
     TEST_CASES_PATH,
 )
-from helper_functions import check_dependence_of_columns
 
 if not os.path.exists(DATA_EXPLORATION_DIR):
     os.makedirs(DATA_EXPLORATION_DIR)
 RAW_DATA_EXPLORATION_FILE = "raw_data_exploration.html"
 TRANSFORMED_DATA_EXPLORATION_FILE = "transformed_data_exploration.html"
 ENCODED_DATA_EXPLORATION_FILE = "encoded_data_exploration.html"
+
+
+def check_dependence_of_columns(
+    df: pd.DataFrame, col_to_compare: str, possibly_derived_cols: List[str]
+) -> None:
+    """Check whether the columns possibly_derived_cols can be derived from the column
+    col_to_compare."""
+    for col in possibly_derived_cols:
+        is_unique = df.groupby(col_to_compare).apply(
+            lambda df, column=col: df[column].nunique() <= 1
+        )
+        if not is_unique.all():
+            print(f"Column {col} cannot be derived from {col_to_compare}!")
+        else:
+            print(f"Column {col} can be derived from {col_to_compare}.")
+
 
 # %% analyze raw data:
 with open(TEST_CASES_PATH, encoding="utf8") as json_file:
@@ -106,10 +123,7 @@ print(
 # %% analyze evidence encoded data:
 evidence_encoder = EvidenceEncoder()
 encoded_data_df = evidence_encoder.fit_transform(transformed_data_df)
-profile_encoded_data = ydata_profiling.ProfileReport(
-    encoded_data_df,
-    minimal=True,
-)  # note: with minimal=False, an error is raised
+profile_encoded_data = ydata_profiling.ProfileReport(encoded_data_df, minimal=True)
 profile_encoded_data.to_file(
     os.path.join(DATA_EXPLORATION_DIR, ENCODED_DATA_EXPLORATION_FILE)
 )

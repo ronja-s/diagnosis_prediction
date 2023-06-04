@@ -13,8 +13,7 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
 
     The following encoding is used:
     -1 if given evidence is absent;
-    0 if given evidence
-    is unknown or not given;
+    0 if given evidence is unknown or not given;
     1 if given evidence is present;
     """
 
@@ -22,7 +21,6 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
         self,
         handle_unknown: str = "ignore",
         count_evidence: bool = False,
-        n_most_frequent: Optional[int] = None,
         include_absent_evidence: bool = True,
         column_present_evidence: str = "evidence_present",
         column_absent_evidence: str = "evidence_absent",
@@ -36,9 +34,6 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
         present evidence for each row (and a column that counts the number of absent
         evidence for each row if include_absent_evidence is True). Defaults to False.
 
-        n_most_frequent (Optional[int]): If not None, only regard and encode the given
-        number of most frequent evidence values. Defaults to None.
-
         include_absent_evidence (bool): If True, absent evidence are also encoded. If
         True, only present evidence are encoded. Defaults to True.
 
@@ -51,7 +46,6 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
         super().__init__()
         self.handle_unknown = handle_unknown
         self.count_evidence = count_evidence
-        self.n_most_frequent = n_most_frequent
         self.include_absent_evidence = include_absent_evidence
         self.column_present_evidence = column_present_evidence
         self.column_absent_evidence = column_absent_evidence
@@ -91,11 +85,6 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
             columns=self.all_evidence,
             index=X.index,
         )
-        if self.n_most_frequent is not None:
-            most_frequent_evidence = self.__get_most_frequent_evidence(
-                evidence_columns_df=evidence_encoding_df
-            )
-            evidence_encoding_df = evidence_encoding_df[most_frequent_evidence]
         return evidence_encoding_df
 
     def _get_evidence_count(self, X: pd.DataFrame) -> pd.DataFrame:
@@ -140,28 +129,6 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
                         raise ValueError(f"{evidence} is an unknown evidence.")
                 encoded_list[self.all_evidence.index(evidence)] = -1
         return encoded_list
-
-    def __get_most_frequent_evidence(
-        self, evidence_columns_df: pd.DataFrame
-    ) -> List[str]:
-        present_evidence_count_df = (
-            evidence_columns_df.replace(-1, 0).sum().sort_values(ascending=False)
-        )
-        most_frequent_present_evidence = list(
-            present_evidence_count_df[: self.n_most_frequent].index
-        )
-        most_frequent_evidence = most_frequent_present_evidence
-        if self.include_absent_evidence:
-            absent_evidence_count_df = (
-                -evidence_columns_df.replace(1, 0).sum()
-            ).sort_values(ascending=False)
-            most_frequent_absent_evidence = list(
-                absent_evidence_count_df[: self.n_most_frequent].index
-            )
-            most_frequent_evidence = list(
-                set(most_frequent_evidence + most_frequent_absent_evidence)
-            )
-        return most_frequent_evidence
 
     def __check_if_all_evidence_is_set(self) -> None:
         if self.all_evidence is None:

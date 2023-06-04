@@ -24,7 +24,6 @@ class PerformanceEvaluator:
     _N_DIMENSIONS_COLUMN = "n_dimensions"
     _COUNT_EVIDENCE_COLUMN = "count_evidence"
     _INCLUDE_ABSENT_EVIDENCE_COLUMN = "include_absent_evidence"
-    _N_MOST_FREQUENT_COLUMN = "n_most_frequent"
     _TRAIN_SCORE_COLUMN = "mean_train_score"
     _TEST_SCORE_COLUMN = "mean_test_score"
     _PARAMS_COLUMN = "params"
@@ -62,7 +61,6 @@ class PerformanceEvaluator:
         n_dimensions_options: List[Optional[int]],
         count_evidence_options: List[bool],
         include_absent_evidence_options: List[bool],
-        n_most_frequent_options: List[Optional[int]],
         verbose: bool = False,
     ) -> pd.DataFrame:
         """Train and evaluate all pipeline with the parameters given in the constructor.
@@ -75,73 +73,69 @@ class PerformanceEvaluator:
                 for n_dimensions in n_dimensions_options:
                     for count_evidence in count_evidence_options:
                         for include_absent_evidence in include_absent_evidence_options:
-                            for n_most_frequent in n_most_frequent_options:
-                                try:
-                                    if verbose:
-                                        print(
-                                            f"Evaluate for: model={model},"
-                                            f" dim_reduction_algorithm={self.__get_class_name(dim_reduction_algorithm)},"
-                                            f" n_dimensions={n_dimensions},"
-                                            f" count_evidences={count_evidence},"
-                                            f" include_absent_evidence={include_absent_evidence},"
-                                            f" n_most_frequent={n_most_frequent}"
-                                        )
-
-                                    pipe = PipelineBuilder(
-                                        model=model,
-                                        dim_reduction_algorithm=dim_reduction_algorithm,
-                                        n_dimensions=n_dimensions,
-                                        count_evidence=count_evidence,
-                                        include_absent_evidence=include_absent_evidence,
-                                        n_most_frequent=n_most_frequent,
-                                    ).get_pipe()
-                                    scores = cross_validate(
-                                        estimator=pipe,
-                                        X=self.X,
-                                        y=self.y,
-                                        scoring=make_scorer(self.performance_metric),
-                                        cv=self.cross_validation_splitting,
-                                        return_train_score=True,
-                                    )
-                                    test_score = scores["test_score"].mean()
-                                    train_score = scores["train_score"].mean()
-                                except ValueError as ex:
-                                    # ignore parameter combinations which are not valid
-                                    if verbose:
-                                        print(f"{type(ex).__name__}: {str(ex)}")
-                                    continue
-
+                            try:
                                 if verbose:
                                     print(
-                                        "=> Test"
-                                        f" score={test_score},"
-                                        " train"
-                                        f" score={train_score}"
+                                        f"Evaluate for: model={model},"
+                                        f" dim_reduction_algorithm={self.__get_class_name(dim_reduction_algorithm)},"
+                                        f" n_dimensions={n_dimensions},"
+                                        f" count_evidences={count_evidence},"
+                                        f" include_absent_evidence={include_absent_evidence}"
                                     )
 
-                                new_row = pd.DataFrame(
-                                    {
-                                        self._MODEL_COLUMN: [model],
-                                        self._MODEL_STR_COLUMN: [str(model)],
-                                        self._DIM_REDUCTION_ALGORITHM_COLUMN: [
-                                            dim_reduction_algorithm
-                                        ],
-                                        self._N_DIMENSIONS_COLUMN: [n_dimensions],
-                                        self._COUNT_EVIDENCE_COLUMN: [count_evidence],
-                                        self._INCLUDE_ABSENT_EVIDENCE_COLUMN: [
-                                            include_absent_evidence
-                                        ],
-                                        self._N_MOST_FREQUENT_COLUMN: [n_most_frequent],
-                                        self._TRAIN_SCORE_COLUMN: [train_score],
-                                        self._TEST_SCORE_COLUMN: [test_score],
-                                        self._PIPELINE_COLUMN: [pipe],
-                                    }
+                                pipe = PipelineBuilder(
+                                    model=model,
+                                    dim_reduction_algorithm=dim_reduction_algorithm,
+                                    n_dimensions=n_dimensions,
+                                    count_evidence=count_evidence,
+                                    include_absent_evidence=include_absent_evidence,
+                                ).get_pipe()
+                                scores = cross_validate(
+                                    estimator=pipe,
+                                    X=self.X,
+                                    y=self.y,
+                                    scoring=make_scorer(self.performance_metric),
+                                    cv=self.cross_validation_splitting,
+                                    return_train_score=True,
                                 )
-                                self.train_and_evaluate_df = pd.concat(
-                                    [self.train_and_evaluate_df, new_row],
-                                    axis=0,
-                                    ignore_index=True,
+                                test_score = scores["test_score"].mean()
+                                train_score = scores["train_score"].mean()
+                            except ValueError as ex:
+                                # ignore parameter combinations which are not valid
+                                if verbose:
+                                    print(f"{type(ex).__name__}: {str(ex)}")
+                                continue
+
+                            if verbose:
+                                print(
+                                    "=> Test"
+                                    f" score={test_score},"
+                                    " train"
+                                    f" score={train_score}"
                                 )
+
+                            new_row = pd.DataFrame(
+                                {
+                                    self._MODEL_COLUMN: [model],
+                                    self._MODEL_STR_COLUMN: [str(model)],
+                                    self._DIM_REDUCTION_ALGORITHM_COLUMN: [
+                                        dim_reduction_algorithm
+                                    ],
+                                    self._N_DIMENSIONS_COLUMN: [n_dimensions],
+                                    self._COUNT_EVIDENCE_COLUMN: [count_evidence],
+                                    self._INCLUDE_ABSENT_EVIDENCE_COLUMN: [
+                                        include_absent_evidence
+                                    ],
+                                    self._TRAIN_SCORE_COLUMN: [train_score],
+                                    self._TEST_SCORE_COLUMN: [test_score],
+                                    self._PIPELINE_COLUMN: [pipe],
+                                }
+                            )
+                            self.train_and_evaluate_df = pd.concat(
+                                [self.train_and_evaluate_df, new_row],
+                                axis=0,
+                                ignore_index=True,
+                            )
             self._write_files(
                 df=self.train_and_evaluate_df,
                 file_path=self.TRAIN_AND_EVALUATE_FILE_PATH,
@@ -191,9 +185,8 @@ class PerformanceEvaluator:
 
             if verbose:
                 print(
-                    "Create plot for grid"
-                    " search of"
-                    f" {self.__get_class_name(model_class)}."
+                    "Create plot for grid search of"
+                    " {self.__get_class_name(model_class)}."
                 )
             if with_plots:
                 self.plot_performance(
@@ -360,7 +353,6 @@ class PerformanceEvaluator:
                 n_dimensions=model_df[self._N_DIMENSIONS_COLUMN],
                 count_evidence=model_df[self._COUNT_EVIDENCE_COLUMN],
                 include_absent_evidence=model_df[self._INCLUDE_ABSENT_EVIDENCE_COLUMN],
-                n_most_frequent=model_df[self._N_MOST_FREQUENT_COLUMN],
             ).get_pipe()
             return model, best_pipeline
         else:
@@ -509,9 +501,5 @@ class PerformanceEvaluator:
             pickle.dump(obj=data, file=file)
 
     @staticmethod
-    def __get_class_name(
-        class_: Type,
-    ) -> Optional[str]:
-        if class_ is None:
-            return None
-        return class_.__name__
+    def __get_class_name(class_: Type) -> Optional[str]:
+        return class_.__name__ if class_ else None
