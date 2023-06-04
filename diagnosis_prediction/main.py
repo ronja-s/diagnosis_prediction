@@ -27,7 +27,7 @@ from sklearn.linear_model import (
     Perceptron,
 )
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, make_scorer
 from sklearn.model_selection import LearningCurveDisplay
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
@@ -146,23 +146,26 @@ performance_evaluator.perform_gridsearch(
 # %%
 print("Get the found best predictor.")
 best_predictor = performance_evaluator.get_best_predictor()
-best_predictor
 
-# %% display learning curve of best predictor:
-LearningCurveDisplay.from_estimator(
+# %% plot learning curves of the best predictor:
+learning_curve = LearningCurveDisplay.from_estimator(
     best_predictor,
     X=X,
     y=y,
     train_sizes=[
-        0.85,  # cannot start lower because of number of components of PCA
+        0.85,  # cannot start lower because of high number of components of PCA
         0.9,
         0.95,
         1.0,
     ],
-    cv=5,
+    cv=cross_validation_splitting,
+    scoring=make_scorer(performance_metric),
     score_type="both",
+    score_name=performance_metric.__name__,
     error_score="raise",
-)
+).figure_
+learning_curve.axes[0].set_title("Learning curves for best predictor")
+learning_curve.savefig(os.path.join(RESULTS_DIR, "learning_curve_best_predictor.jpg"))
 
 # %% Optional: plot performance for other paramaters of the pipeline:
 performance_evaluator.plot_performance(
