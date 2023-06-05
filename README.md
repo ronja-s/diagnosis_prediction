@@ -3,31 +3,61 @@
 This is a test project in order to experiment with machine learning algorithms.
 
 ## Usage
-Download the data from https://infermedica.com/test-cases and save it as `test_cases.json` in the directory `data`.
-Run `diagnosis_prediction/main.py`. The results will be saved to the directory `results`.
+Download the data from [Infermedica](https://infermedica.com/test-cases) and save it as `test_cases.json` in the directory [data](data/).
+Run [main.py](diagnosis_prediction/main.py). The results will be saved to the directory [results](results/).
 
 ## Project Description
 ### Problem Definition
 The goal is to predict diagnoses of patients based on features like sex, age, symptoms and risk factors.
 
-The data `test_cases.json` is a list of JSON objects reflecting the different patients. The JSON objects are nested and have the following structure:
-
-```json
-patient = {"public_test_case_id":int,"public_test_case_name":str,"public_test_case_source":str,"expected_condition_name":str,"expected_condition_common_name":str,"expected_condition_id":str,"expected_condition_position_range":str,"expected_condition_icd10_codes":[str],"evidence":{"present":[{"id":str,"name":str,"type":str,"initial":bool}],"absent":[{"id":str,"name":str,"type":str,"initial":bool}],"unknown":[{"id":str,"name":str,"type":str,"initial":bool}]},"test_case_passed":bool,"predicted_conditions":[{"id":str,"name":str,"common_name":str,"probability":float}],"api_payload":{"sex":str,"age":{"value":int,"unit":str},"evidence":[{"id":str,"choice_id":str},{"id":str,"choice_id":str,"source":str}]}}
+The data is a list of JSON objects reflecting the different patients. The JSON objects are nested and have the following structure:
+ 
+```python
+patient = {
+    "public_test_case_id": 6425,
+    "public_test_case_name": "21-year-old female with an umblilical erythema",
+    "public_test_case_source": "100 Cases in Dermatology. Morris-Jones R, Powell AM, Benton E. CRC Press; 2011, page 19-22",
+    "expected_condition_name": "Systemic lupus erythematosus",
+    "expected_condition_common_name": "Undescended testicle",
+    "expected_condition_id": "c_1133",
+    "expected_condition_position_range": "top_3",
+    "expected_condition_icd10_codes":["T78.2"],
+    "evidence":{
+        "present":[
+            {"id": "s_156", "name": "Headache, recent", "type": "symptom", "initial": true},
+            {"id": "s_310", "name": "Dry mouth", "type": "risk_factor", "initial": false}],
+        "absent":[{"id": "s_101","name": "Itching after a hot shower or bath","type": "symtom","initial": false}],
+        "unknown":[]
+        },
+    "test_case_passed": true,
+    "predicted_conditions":[
+        {"id": "c_1116","name": "Anaphylaxis","common_name": "Foreign body aspiration","probability": 0.8197},
+        {"id": "c_77","name": "Seborrheic dermatitis","common_name": "Paronychia","probability": 0.174}
+        ],
+    "api_payload":{
+        "sex": "female",
+        "age":{"value": 11,"unit": "year"},
+        "evidence":[
+            {"id": "s_2307", "choice_id": "present"},
+            {"id": "s_510", "choice_id": "absent", "source": "initial"}
+            ]
+        }
+    }
 ```
+Note that this is a randomized data entry.
 
-Note that the field `api_payload` repeats some information: `patient["api_payload"]["evidence"]` reflects the information of `patient["evidence"]`. `patient["api_payload"["evidence"]["choice_id"]` can take the values "present", "absent" or "unknown"; and `patient["api_payload"["evidence"]["source"]` can take the value "initial".
+The field `api_payload` repeats some information: `patient["api_payload"]["evidence"]` reflects the information of `patient["evidence"]`. `patient["api_payload"["evidence"]["choice_id"]` can take the values "present", "absent" or "unknown"; and `patient["api_payload"["evidence"]["source"]` can take the value "initial".
 
 The fields `expected_condition_name`, `expected_condition_common_name`, `expected_condition_id`, `expected_condition_position_range`, `expected_condition_icd10_codes` are related to the target of the prediction.
 The fields `predicted_conditions`, `test_case_passed` are the result of the prediction model from Infermedica and are ignored here.
 The other fields can be used as input for the prediction: `public_test_case_id`, `public_test_case_name`, `public_test_case_source`, `evidence`, `api_payload`.
 
 ### Data Exploration & Data Loading
-The data exploration is done with the script `diagnosis_prediction/data_exploration.py` and its resulting files are saved to the directory `data_exploration`. The detailed findings are stated in `diagnosis_prediction/data_exploration.py`. Here, the most important insights are summarized.
+The data exploration is done in the jupyter notebook [data_exploration.ipynb](diagnosis_prediction/data_exploration.jpynb) and its resulting files are saved to the directory [data_exploration](data_exploration/). Some more detailed findings are stated in the jupyter notebook. Here, the most important insights are summarized.
 
 The given data is not tabular. In order to load the data into a (tabular) pandas dataframe, some manual manipulation is necessary to extract the desired columns. 
 
-The data contains 373 rows. The possible target columns `expected_condition_id`, `expected_condition_name`, `expected_condition_icd10_codes` take over 260 distinct values, that is over 70% of the number of rows. In order to make sensible predictions, the target needs to be grouped. For this, the ICD-10 code given by the column `expected_condition_icd10_codes` are categorized by means of ICD-10 chapter definitions which are stored in `data/icd10_chapters_definition.csv`. The resulting column is called `expected_condition_icd10_blocks`.
+The data contains 373 rows. The possible target columns `expected_condition_id`, `expected_condition_name`, `expected_condition_icd10_codes` take over 260 distinct values, that is over 70% of the number of rows. In order to make sensible predictions, the target needs to be grouped. For this, the ICD-10 code given by the column `expected_condition_icd10_codes` are categorized by means of ICD-10 chapter definitions which are stored in [icd10_chapters_definition.csv](data/icd10_chapters_definition.csv). The resulting column is called `expected_condition_icd10_blocks`.
 
 Since more than one ICD-10 code can be given in the `expected_condition_icd10_codes` column, there can also be multiple corresponding ICD-10 chapters in the target. To avoid a multilabel classification problem, the target is mapped to unique identifiers.
 
@@ -35,7 +65,7 @@ With this mapping, the target `expected_condition_icd10_blocks` takes 32 distinc
 
 The age information is given as `value` and `unit` which can be either `"year"` or `"month"`. For an easier learning, the age value is converted to a consistent unit `"month"`.
 
-All of this is performed in the `DataLoader` class.  The result is a feature matrix with the following columns
+All of this is performed in the [DataLoader](diagnosis_prediction/data_loader.py) class.  The result is a feature matrix with the following columns
 - `sex: str`
 - `age_in_months: int`
 - `evidence_present: List[str]`
@@ -58,14 +88,14 @@ The `age_in_months` is a numerical variable which will be scaled with the `Stand
 - -1 if that evidence is absent,
 - 0 if that evidence is not given or unknown. 
 
-This is done in the `EvidenceEncoder` class and yields 750 columns when applied to the whole dataset. Note that this exceeds the number of rows which makes a model prone to overfitting.
+This is done in the [EvidenceEncoder](diagnosis_prediction/evidence_encoder.py) class and yields 750 columns when applied to the whole dataset. Note that this exceeds the number of rows which makes a model prone to overfitting.
 
 Because of that, different dimensionality reduction algorithms are applied before the training to reduce the number of features.
 Another option is to neglect the absent evidence. But this still results in 706 columns when encoding the evidence of the whole dataset.
 
 We optionally add features that count the number of present and absent evidence for each row. This could be especially helpful for tree based models. Those counts are scaled with the `MinMaxScaler` to be in the range [-1,1].
 
-The `PipelineBuilder` class is putting all steps together to build the final pipeline which is ready to be trained.
+The [PipelineBuilder](diagnosis_prediction/pipeline_builder.py) class is putting all steps together to build the final pipeline which is ready to be trained.
 
 ### Model Training
 In order to find a good predictor, different pipelines are tested by varying the following things:
@@ -75,7 +105,7 @@ In order to find a good predictor, different pipelines are tested by varying the
 - dimensionality reduction algorithm and the resulting number of dimensions,
 - classifier.
 
-This is implemented in the `PerformanceEvaluator` class with the `train_and_evaluate` method.
+This is implemented in the [PerformanceEvaluator](diagnosis_prediction/performance_evaluator.py) class with the `train_and_evaluate` method.
 
 As a baseline model, `sklearn`'s `Dummyclassifier` is used predicting the most frequent target. Apart from that, the following machine learning algorithms are tested:
 
@@ -109,8 +139,8 @@ The overfitting is attempted to be reduced by tuning hyperparameters that contro
 - maximum tree depth for decision tree, extra trees, random forest, gradient boosting,
 - number of estimators for extra trees, random forest, gradient boosting.
 
-This is done via a grid search with the `perform_gridsearch` method of the `PerformanceEvaluator` class.
-The resulting best pipelines for all classifiers are stored in `results/best_parameters.csv`. There are also plots depicting the train and test accuracy when varying those hyperparameters.
+This is done via a grid search with the `perform_gridsearch` method of the [PerformanceEvaluator](diagnosis_prediction/performance_evaluator.py) class.
+The resulting best pipelines for all classifiers are stored in [best_parameters.csv](results/best_parameters.csv). There are also plots depicting the train and test accuracy when varying those hyperparameters.
 
 Unfortunately, the improvement of the test accuracy from the model tunding is less than 3% for every classifier.
 
@@ -122,7 +152,7 @@ The best predictor is the following:
 - number of evidence are not count
 - inverse regularization strength `C` of 0.1
 
-It can be obtained via the `get_best_predictor` method of the `PerformanceEvaluator` class and yields a test accuracy of approximately 57.3% and a train accuracy of 100%.
+It can be obtained via the `get_best_predictor` method of the [PerformanceEvaluator](diagnosis_prediction/performance_evaluator.py) class and yields a test accuracy of approximately 57.3% and a train accuracy of 100%.
 
 ### Fit Quality
 For a better judgement of the fit quality, the learning curves of the best predictors are plotted. (Note that the number of samples in the train set cannot be smaller than the number of components of the PCA).
