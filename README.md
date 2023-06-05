@@ -5,6 +5,8 @@ This is a test project in order to experiment with machine learning algorithms.
 ## Usage
 Download the data from [Infermedica](https://infermedica.com/test-cases) and save it as `test_cases.json` in the directory [data](data/).
 Run [main.py](diagnosis_prediction/main.py). The results will be saved to the directory [results](results/).
+Download the data from [Infermedica](https://infermedica.com/test-cases) and save it as `test_cases.json` in the directory [data](data/).
+Run [main.py](diagnosis_prediction/main.py). The results will be saved to the directory [results](results/).
 
 ## Project Description
 ### Problem Definition
