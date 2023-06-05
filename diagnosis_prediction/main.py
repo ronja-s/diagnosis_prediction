@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# %%
+
 import os
 import random
 import warnings
@@ -42,16 +42,6 @@ def set_seed(seed: int) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
     os.environ["TF_DETERMINISTIC_OPS"] = "1"
 
-
-set_seed(SEED)
-
-warnings.filterwarnings("ignore")  # to reduce noise during training
-
-if not os.path.exists(RESULTS_DIR):
-    os.makedirs(RESULTS_DIR)
-
-performance_metric = accuracy_score
-cross_validation_splitting = 5
 
 model_options = [
     DummyClassifier(),  # baseline model (predicting the most frequent target)
@@ -109,66 +99,82 @@ hyperparameters = {
     },
 }
 
-print("Load the data.")
-X, y = DataLoader(multi_label=False).load(
-    data_path=TEST_CASES_PATH,
-    icd10_chapters_definition_path=ICD10_CHAPTERS_DEFINITION_PATH,
-    test_size=None,
-)
-print("X:", X)
-print("y:", y)
+performance_metric = accuracy_score
+cross_validation_splitting = 5
 
-performance_evaluator = PerformanceEvaluator(
-    X=X,
-    y=y,
-    performance_metric=performance_metric,
-    cross_validation_splitting=cross_validation_splitting,
-    results_directory=RESULTS_DIR,
-)
 
-# %%
-print("Train and evaluate chosen pipelines.")
-performance_evaluator.train_and_evaluate(
-    model_options=model_options,
-    dim_reduction_algorithm_options=dim_reduction_algorithm_options,
-    n_dimensions_options=n_dimensions_options,
-    count_evidence_options=count_evidence_options,
-    include_absent_evidence_options=include_absent_evidence_options,
-    verbose=True,
-)
+def main() -> None:
+    warnings.filterwarnings("ignore")  # to reduce noise during training
 
-# %%
-print("Perform grid search.")
-performance_evaluator.perform_gridsearch(
-    hyperparameters=hyperparameters, with_plots=True, verbose=True
-)
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR)
 
-# %%
-print("Get the found best predictor.")
-best_predictor = performance_evaluator.get_best_predictor()
+    print("Set random number generator seed.")
+    set_seed(SEED)
 
-# %% plot learning curves of the best predictor:
-learning_curve = LearningCurveDisplay.from_estimator(
-    best_predictor,
-    X=X,
-    y=y,
-    train_sizes=[
-        0.85,  # cannot start lower because of high number of components of PCA
-        0.9,
-        0.95,
-        1.0,
-    ],
-    cv=cross_validation_splitting,
-    scoring=make_scorer(performance_metric),
-    score_type="both",
-    score_name=performance_metric.__name__,
-    error_score="raise",
-).figure_
-learning_curve.axes[0].set_title("Learning curves for best predictor")
-learning_curve.savefig(os.path.join(RESULTS_DIR, "learning_curve_best_predictor.jpg"))
+    print("Load the data.")
+    X, y = DataLoader(multi_label=False).load(
+        data_path=TEST_CASES_PATH,
+        icd10_chapters_definition_path=ICD10_CHAPTERS_DEFINITION_PATH,
+        test_size=None,
+    )
+    print("X:", X)
+    print("y:", y)
 
-# %% Optional: plot performance for other paramaters of the pipeline:
-performance_evaluator.plot_performance(
-    model_class=LinearSVC,
-    parameters=["n_dimensions"],
-)
+    performance_evaluator = PerformanceEvaluator(
+        X=X,
+        y=y,
+        performance_metric=performance_metric,
+        cross_validation_splitting=cross_validation_splitting,
+        results_directory=RESULTS_DIR,
+    )
+
+    print("Train and evaluate chosen pipelines.")
+    performance_evaluator.train_and_evaluate(
+        model_options=model_options,
+        dim_reduction_algorithm_options=dim_reduction_algorithm_options,
+        n_dimensions_options=n_dimensions_options,
+        count_evidence_options=count_evidence_options,
+        include_absent_evidence_options=include_absent_evidence_options,
+        verbose=True,
+    )
+
+    print("Perform grid search.")
+    performance_evaluator.perform_gridsearch(
+        hyperparameters=hyperparameters, with_plots=True, verbose=True
+    )
+
+    print("Get the found best predictor.")
+    best_predictor = performance_evaluator.get_best_predictor()
+
+    print("Plot learning curves for best predictor.")
+    learning_curve = LearningCurveDisplay.from_estimator(
+        best_predictor,
+        X=X,
+        y=y,
+        train_sizes=[
+            0.85,  # cannot start lower because of high number of components of PCA
+            0.9,
+            0.95,
+            1.0,
+        ],
+        cv=cross_validation_splitting,
+        scoring=make_scorer(performance_metric),
+        score_type="both",
+        score_name=performance_metric.__name__,
+        error_score="raise",
+    ).figure_
+    learning_curve.axes[0].set_title("Learning curves for best predictor")
+    learning_curve.savefig(
+        os.path.join(RESULTS_DIR, "learning_curve_best_predictor.jpg")
+    )
+
+    print("Optional: Plot performance for varying desired paramaters.")
+    performance_evaluator.plot_performance(
+        model_class=LinearSVC,
+        parameters=["n_dimensions"],
+    )
+
+
+if __name__ == "__main__":
+    main()
