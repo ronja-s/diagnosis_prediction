@@ -26,7 +26,7 @@ patient = {
         "present":[
             {"id": "s_156", "name": "Headache, recent", "type": "symptom", "initial": true},
             {"id": "s_310", "name": "Dry mouth", "type": "risk_factor", "initial": false}],
-        "absent":[{"id": "s_101","name": "Itching after a hot shower or bath","type": "symtom","initial": false}],
+        "absent":[{"id": "s_101","name": "Itching after a hot shower or bath","type": "symptom","initial": false}],
         "unknown":[]
         },
     "test_case_passed": true,
@@ -142,7 +142,7 @@ The overfitting is attempted to be reduced by tuning hyperparameters that contro
 This is done via a grid search with the `perform_gridsearch` method of the [PerformanceEvaluator](diagnosis_prediction/performance_evaluator.py) class.
 The resulting best pipelines for all classifiers are stored in [best_parameters.csv](results/best_parameters.csv). There are also plots depicting the train and test accuracy when varying those hyperparameters.
 
-Unfortunately, the improvement of the test accuracy from the model tunding is less than 3% for every classifier.
+Unfortunately, the improvement of the test accuracy from the model tuning is less than 3% for every classifier.
 
 The best predictor is the following:
 
@@ -157,11 +157,11 @@ It can be obtained via the `get_best_predictor` method of the [PerformanceEvalua
 ### Fit Quality
 For a better judgement of the fit quality, the learning curves of the best predictors are plotted. (Note that the number of samples in the train set cannot be smaller than the number of components of the PCA).
 
-We find converged curves for the train and test accuracy whith a large gap between them. This indicates that the train set is too small. 
+We find converged curves for the train and test accuracy with a large gap between them. This indicates that the train set is too small. 
 
 ### Conclusion & Outlook
 The baseline model yields a test accuracy of 16.1% whereas the best predictor, a linear support vector machine, achieves a test accuracy of 57.3% which is more than 3 times better.
 
-However, the best predictor still overfits severely which is predominantly caused by a lack of data. Therefore, the main focus for imporovement should be to get more data.
+However, the best predictor still overfits severely which is predominantly caused by a lack of data. Therefore, the main focus for improvement should be to get more data.
 
 Apart from that, it could be sensible to try out other feature reduction methods. One could analyze the feature importance or group the evidence into categories. 

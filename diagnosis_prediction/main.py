@@ -169,7 +169,7 @@ def main() -> None:
         os.path.join(RESULTS_DIR, "learning_curve_best_predictor.jpg")
     )
 
-    print("Optional: Plot performance for varying desired paramaters.")
+    print("Optional: Plot performance for varying desired parameters.")
     performance_evaluator.plot_performance(
         model_class=LinearSVC,
         parameters=["n_dimensions"],

@@ -149,7 +149,7 @@ class PerformanceEvaluator:
         with_plots: bool = True,
         verbose: bool = False,
     ) -> pd.DataFrame:
-        """Perform grid searchs to tune the given hyperparameters on the best found
+        """Perform grid search to tune the given hyperparameters on the best found
         pipelines.
         """
         self.grid_search_df = pd.DataFrame()

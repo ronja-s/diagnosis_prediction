@@ -108,24 +108,24 @@ class EvidenceEncoder(BaseEstimator, TransformerMixin):
         present_evidence_list: Optional[List[str]] = None,
         absent_evidence_list: Optional[List[str]] = None,
     ) -> List:
-        HANDLE_UNKOWN_ERROR = "error"
-        HANDLE_UNKOWN_IGNORE = "ignore"
+        HANDLE_UNKNOWN_ERROR = "error"
+        HANDLE_UNKNOWN_IGNORE = "ignore"
         self.__check_if_all_evidence_is_set()
         encoded_list = [0] * len(self.all_evidence)
         if present_evidence_list:
             for evidence in present_evidence_list:
                 if evidence not in self.all_evidence:
-                    if self.handle_unknown == HANDLE_UNKOWN_IGNORE:
+                    if self.handle_unknown == HANDLE_UNKNOWN_IGNORE:
                         continue
-                    elif self.handle_unknown == HANDLE_UNKOWN_ERROR:
+                    elif self.handle_unknown == HANDLE_UNKNOWN_ERROR:
                         raise ValueError(f"{evidence} is an unknown evidence.")
                 encoded_list[self.all_evidence.index(evidence)] = 1
         if absent_evidence_list:
             for evidence in absent_evidence_list:
                 if evidence not in self.all_evidence:
-                    if self.handle_unknown == HANDLE_UNKOWN_IGNORE:
+                    if self.handle_unknown == HANDLE_UNKNOWN_IGNORE:
                         continue
-                    elif self.handle_unknown == HANDLE_UNKOWN_ERROR:
+                    elif self.handle_unknown == HANDLE_UNKNOWN_ERROR:
                         raise ValueError(f"{evidence} is an unknown evidence.")
                 encoded_list[self.all_evidence.index(evidence)] = -1
         return encoded_list
