@@ -14,7 +14,7 @@ class DataLoader:
 
     def __init__(self, multi_label: bool = False) -> None:
         """Args:
-        multi_labe (bool): If True, target is a list of ICD-10 code blocks (str),
+        multi_label (bool): If True, target is a list of ICD-10 code blocks (str),
         possibly resulting in a multi-label classification task. If False, target is a
         single string containing this list of ICD-10 code blocks. Defaults to False.
         """
