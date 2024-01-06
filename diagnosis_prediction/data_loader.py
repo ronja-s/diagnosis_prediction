@@ -67,7 +67,7 @@ class DataLoader:
         self._data_df.set_index(INDEX_COLUMN, inplace=True)
 
     def _manipulate_raw_dataframe(self, icd10_chapters_definition_path: str) -> None:
-        self.__check_if_dataframe_is_loaded
+        self.__check_if_dataframe_is_loaded()
         self.__drop_undesirable_columns()
         self.__prepare_age_and_sex_columns()
         self.__extract_evidence()
