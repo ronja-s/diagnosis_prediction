@@ -1,4 +1,3 @@
-# %%
 import os
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -10,5 +9,3 @@ DATA_EXPLORATION_DIR = os.path.join(ROOT_DIR, "data_exploration")
 SEED = 31415
 TARGET_COLUMN = "expected_condition_icd10_blocks"
 INDEX_COLUMN = "public_test_case_id"
-
-# %%
