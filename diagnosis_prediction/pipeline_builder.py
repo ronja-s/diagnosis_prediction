@@ -63,9 +63,7 @@ class PipelineBuilder:
         else:
             self._EVIDENCE_COUNT_COLUMNS = [self.__PRESENT_EVIDENCE_COUNT]
 
-    def get_pipe(
-        self,
-    ) -> Pipeline:
+    def get_pipe(self) -> Pipeline:
         steps = [("encoding_and_scaling", self._get_encoding_and_scaling_pipe())]
 
         if self.dim_reduction_algorithm:
@@ -116,9 +114,7 @@ class PipelineBuilder:
         )
         return transformer
 
-    def __get_evidence_encoding_pipe(
-        self,
-    ) -> Pipeline:
+    def __get_evidence_encoding_pipe(self) -> Pipeline:
         steps = [
             (
                 "evidence_encoding",

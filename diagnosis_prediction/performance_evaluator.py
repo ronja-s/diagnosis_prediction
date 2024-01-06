@@ -426,9 +426,7 @@ class PerformanceEvaluator:
             statistics_df["std"].fillna(0.0),
         )
 
-    def __append_gridsearch_results_to_best_parameters(
-        self,
-    ) -> None:
+    def __append_gridsearch_results_to_best_parameters(self) -> None:
         try:
             self.grid_search_df = self._load_dataframe(
                 df=self.grid_search_df,
