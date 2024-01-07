@@ -40,8 +40,7 @@ class PipelineBuilder:
         features. Otherwise, only present evidence are used. Defaults to True.
 
         Raises:
-            PipelineParameterCombinationError: If non-valid parameter combinations are
-            used.
+            ValueError: If non-valid parameter combinations are used.
         """
         self.model = model
         self.dim_reduction_algorithm = dim_reduction_algorithm
